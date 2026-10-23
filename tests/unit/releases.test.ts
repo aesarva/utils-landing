@@ -1,5 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readSnapshot } from '../../scripts/read-snapshot';
 import { mergeReleases, parseLatestRelease, serializeReleases } from '../../src/lib/releases';
 import type { Releases } from '../../src/lib/schema';
 
@@ -38,9 +41,14 @@ describe('parseLatestRelease', () => {
 
   it('соседние ассеты (appcast.xml, Lidless.dmg) не мешают', () => {
     const body = fx('lidless-latest') as { assets: unknown[] };
-    body.assets.push({ name: 'appcast.xml', size: 10, browser_download_url: 'https://x/appcast.xml' });
+    body.assets.unshift(
+      { name: 'appcast.xml', size: 10, browser_download_url: 'https://x/appcast.xml' },
+      { name: 'Lidless.dmg', size: 20, browser_download_url: 'https://x/Lidless.dmg' },
+    );
     const r = parseLatestRelease(lidless, { status: 200, body });
-    expect(r.kind === 'ok' && r.release.status === 'released' && r.release.version).toBe('0.3.0');
+    if (r.kind !== 'ok' || r.release.status !== 'released') throw new Error('ожидался released');
+    expect(r.release.url.endsWith('/Lidless-0.3.0.dmg')).toBe(true);
+    expect(r.release.size).toBeGreaterThan(20);
   });
 
   it('draft и prerelease → error', () => {
@@ -78,10 +86,53 @@ describe('mergeReleases', () => {
 });
 
 describe('serializeReleases', () => {
+  const rel = { status: 'released', version: '1.0.0', url: 'https://x/A-1.0.0.dmg', size: 5, publishedAt: 'T' } as const;
+
   it('стабилен при разном порядке ключей', () => {
-    const a: Releases = { a: { status: 'soon' }, b: { status: 'soon' } };
-    const b: Releases = { b: { status: 'soon' }, a: { status: 'soon' } };
+    const a: Releases = { a: rel, b: { status: 'soon' } };
+    const b = { b: { status: 'soon' }, a: { url: rel.url, version: rel.version, status: rel.status, size: 5, publishedAt: 'T' } } as Releases;
     expect(serializeReleases(a)).toBe(serializeReleases(b));
-    expect(serializeReleases(a).endsWith('}\n')).toBe(true);
+  });
+
+  it('точный формат: отступ 2, ключи отсортированы, перевод строки в конце', () => {
+    const input: Releases = { b: { status: 'soon' }, a: rel };
+    const expected = `{
+  "a": {
+    "publishedAt": "T",
+    "size": 5,
+    "status": "released",
+    "url": "https://x/A-1.0.0.dmg",
+    "version": "1.0.0"
+  },
+  "b": {
+    "status": "soon"
+  }
+}
+`;
+    const out = serializeReleases(input);
+    expect(out).toBe(expected);
+    expect(JSON.parse(out)).toEqual(input);
+  });
+});
+
+describe('readSnapshot', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'snap-'));
+
+  it('отсутствующий файл → предупреждение', () => {
+    const r = readSnapshot(join(dir, 'нет.json'));
+    expect(r.releases).toEqual({});
+    expect(r.warning).toMatch(/отсутствует/);
+  });
+
+  it('битый файл → предупреждение', () => {
+    const p = join(dir, 'bad.json');
+    writeFileSync(p, '{oops');
+    expect(readSnapshot(p).warning).toMatch(/не читается/);
+  });
+
+  it('валидный файл → без предупреждения', () => {
+    const p = join(dir, 'ok.json');
+    writeFileSync(p, '{"a":{"status":"soon"}}');
+    expect(readSnapshot(p)).toEqual({ releases: { a: { status: 'soon' } } });
   });
 });

@@ -1,21 +1,15 @@
 // Обновляет src/data/releases.json из GitHub API. Всегда выходит с кодом 0:
 // при любой ошибке остаётся снимок, сборка не должна падать из-за GitHub.
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mergeReleases, parseLatestRelease, serializeReleases, type FetchOutcome } from '../src/lib/releases';
-import { productSchema, releasesFileSchema, type Releases } from '../src/lib/schema';
+import { productSchema } from '../src/lib/schema';
 import { readProducts } from './load-products';
+import { readSnapshot } from './read-snapshot';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const file = join(root, 'src/data/releases.json');
-
-function readSnapshot(): Releases {
-  if (!existsSync(file)) return {};
-  const parsed = releasesFileSchema.safeParse(JSON.parse(readFileSync(file, 'utf8')));
-  if (!parsed.success) throw new Error(`снимок releases.json не читается: ${parsed.error.message}`);
-  return parsed.data;
-}
 
 async function fetchOutcome(product: { repo: string; dmg: string }): Promise<FetchOutcome> {
   try {
@@ -36,9 +30,10 @@ async function fetchOutcome(product: { repo: string; dmg: string }): Promise<Fet
 }
 
 async function main(): Promise<void> {
-  const snapshot = readSnapshot();
+  const { releases: snapshot, warning } = readSnapshot(file);
+  if (warning) console.error(`предупреждение: ${warning}`);
   if (process.env.RELEASES_OFFLINE === '1') {
-    console.log('RELEASES_OFFLINE=1: запросы пропущены, снимок читается');
+    if (!warning) console.log('RELEASES_OFFLINE=1: запросы пропущены, снимок читается');
     return;
   }
   const products = readProducts(root).map((p) => productSchema.parse(p.data));
