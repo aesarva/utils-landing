@@ -9,8 +9,9 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "npm run fetch:releases && astro build",
     "build:offline": "RELEASES_OFFLINE=1 npm run build",
+    "fetch:releases": "tsx scripts/fetch-releases.ts",
     "preview": "astro preview",
     "check": "astro check",
     "test": "vitest run",

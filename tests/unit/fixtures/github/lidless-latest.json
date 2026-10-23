@@ -1,0 +1,18 @@
+{
+  "assets": [
+    {
+      "browser_download_url": "https://github.com/aesarva/lidless/releases/download/v0.3.0/Lidless-0.3.0.dmg",
+      "name": "Lidless-0.3.0.dmg",
+      "size": 5709781
+    },
+    {
+      "browser_download_url": "https://github.com/aesarva/lidless/releases/download/v0.3.0/Lidless.dmg",
+      "name": "Lidless.dmg",
+      "size": 5709781
+    }
+  ],
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2026-10-23T22:09:09Z",
+  "tag_name": "v0.3.0"
+}

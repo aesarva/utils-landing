@@ -1,0 +1,13 @@
+{
+  "assets": [
+    {
+      "browser_download_url": "https://github.com/aesarva/ochre/releases/download/v1.1.4/appcast.xml",
+      "name": "appcast.xml",
+      "size": 864
+    }
+  ],
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2026-10-23T23:46:17Z",
+  "tag_name": "v1.1.4"
+}
