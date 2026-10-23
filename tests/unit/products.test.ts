@@ -15,14 +15,27 @@ const mk = (id: string, order: number): Product => ({
 }) as Product;
 
 describe('withReleases', () => {
-  const releases: Releases = { a: { status: 'soon' }, b: { status: 'soon' } };
-  it('сортирует по order', () => {
+  const released = {
+    status: 'released',
+    version: '1.2.3',
+    url: 'https://example.com/a-1.2.3.dmg',
+    size: 1234,
+    publishedAt: '2026-01-01T00:00:00Z',
+  } as const;
+  const releases: Releases = { a: released, b: { status: 'soon' } };
+  it('сортирует по order и отдаёт каждому его релиз', () => {
     const r = withReleases([mk('b', 2), mk('a', 1)], releases);
     expect(r.map((p) => p.id)).toEqual(['a', 'b']);
-    expect(r[0].release.status).toBe('soon');
+    expect(r[0].release).toEqual(released);
+    expect(r[1].release).toEqual({ status: 'soon' });
   });
   it('бросает при отсутствии записи релиза', () => {
     expect(() => withReleases([mk('zzz', 1)], releases)).toThrow('нет записи релиза для zzz');
+  });
+  it('не берёт унаследованные свойства (id constructor)', () => {
+    expect(() => withReleases([mk('constructor', 1)], {})).toThrow(
+      'нет записи релиза для constructor',
+    );
   });
 });
 

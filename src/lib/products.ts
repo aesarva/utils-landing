@@ -8,9 +8,9 @@ export function withReleases(products: Product[], releases: Releases): ProductVi
   return [...products]
     .sort((a, b) => a.order - b.order)
     .map((p) => {
-      const release = releases[p.id];
-      if (!release) throw new Error(`нет записи релиза для ${p.id}`);
-      return { ...p, release };
+      // hasOwn: чтобы id вроде `constructor` не находил унаследованные свойства
+      if (!Object.hasOwn(releases, p.id)) throw new Error(`нет записи релиза для ${p.id}`);
+      return { ...p, release: releases[p.id] };
     });
 }
 
