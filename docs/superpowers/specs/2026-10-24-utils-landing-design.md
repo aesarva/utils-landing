@@ -69,6 +69,9 @@ Ochre (`../ochre`), Subus (`../subus`), Lidless (`../lidless`), будут до�
 - В `<head>` каждой страницы: `<link rel="alternate" hreflang="ru|en|x-default">` и
   `<link rel="canonical">`. `x-default` указывает на русскую версию.
 - `404.html` двуязычная (одна страница, оба текста), в мире хаба.
+- Индексация включается одной константой `INDEXABLE` в `src/lib/site.ts`. Пока миры не готовы,
+  она `false`: `<meta name="robots" content="noindex">` на всех страницах и `Disallow: /`
+  в `robots.txt`. Сайт выкладывается рано, на заглушках миров, а последняя задача включает индексацию.
 
 ## 2. Структура репозитория
 
@@ -147,7 +150,9 @@ tagline:
     устаревшая на час ссылка лучше упавшего сайта.
 - Пишет `src/data/releases.json`: `{ <id>: { status, version?, url?, size?, publishedAt? } }`,
   ключи отсортированы, чтобы diff был стабильным.
-- `npm run build -- --offline` (и `RELEASES_OFFLINE=1`) пропускает запросы и собирает по снимку.
+- `RELEASES_OFFLINE=1` (скрипт `npm run build:offline`) пропускает запросы и собирает по снимку.
+- Продукт, которого ещё нет в снимке, при ошибке запроса записывается как `soon`
+  с предупреждением: новый продукт не роняет офлайн-сборку.
 - Снимок коммитится: локальная сборка без сети и первый деплой работают сразу. CI свежие данные
   обратно не коммитит.
 
@@ -157,7 +162,8 @@ tagline:
 - `soon` — продукт виден в хабе и имеет страницу; вместо кнопки — «Скоро» / «Coming soon» без ссылки.
   Утром 2026-10-24 это был Subus; его 1.0.0 (тег `v1.0.0`, `Subus-1.0.0.dmg`) выходит в тот же
   день и сам переключится в `released` при следующей сборке.
-- Сборка копирует снимок в `dist/releases.json`: по нему CI понимает, что изменилось (раздел 4).
+- Эндпоинт `src/pages/releases.json.ts` отдаёт снимок как `dist/releases.json`: по нему CI
+  понимает, что изменилось (раздел 4).
 
 ### Синхронизация картинок
 
@@ -229,7 +235,7 @@ GitHub Actions запускается только с ветки по умолч
 - `server/nginx/utils-https.conf` — `listen 127.0.0.1:8443 ssl`, `http2 on`,
   `server_name utils.cyber-tech.online`, сертификат из `/etc/nginx/ssl/utils.cyber-tech.online/`,
   `root /srv/utils/site/current`, `absolute_redirect off`, `error_page 404 /404.html`,
-  `try_files $uri $uri/ =404`. Без входа и без `noindex`.
+  `try_files $uri $uri/ =404`. Без входа; индексацией управляет сам сайт (`INDEXABLE`).
   - Кэш: `/_astro/` и `/fonts/` — `max-age=31536000, immutable`; HTML — `no-cache`;
     `release.txt` и `releases.json` — `expires -1`.
   - Заголовки: `Content-Security-Policy` (`default-src 'self'`; `img-src 'self' data:`;
@@ -278,8 +284,8 @@ GitHub Actions запускается только с ветки по умолч
 
 ### Сервер
 
-`server/test/utils-receive.test.sh` — локальный прогон приёмника с `UTILS_ROOT` во временной
-папке: хороший архив, повторная выкладка того же sha, пустой stdin (откат), отсутствующий
+`tests/unit/utils-receive.test.ts` (vitest, как `atlas-receive.test.ts` у атласа) — локальный
+прогон приёмника с `UTILS_ROOT` во временной папке: хороший архив, повторная выкладка того же sha, пустой stdin (откат), отсутствующий
 релиз при откате, плохой sha, слишком большой архив, битый архив, архив без обязательных файлов.
 
 ### После выкладки
