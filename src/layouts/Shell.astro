@@ -1,0 +1,58 @@
+---
+// Оболочка страницы: head, верхняя панель, подвал. Своих цветов и шрифтов нет:
+// только var(--shell-*), которые задаёт мир на странице.
+import type { Lang } from '../lib/schema';
+import { alternates, pagePath } from '../lib/routes';
+import { INDEXABLE, SITE } from '../lib/site';
+import TopBar from '../components/shell/TopBar.astro';
+import Footer from '../components/shell/Footer.astro';
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description: string;
+  productId?: string;
+  isHub?: boolean;
+}
+const { lang, title, description, productId, isHub = false } = Astro.props;
+const canonical = `${SITE}${pagePath(lang, productId)}`;
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {alternates(productId).map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+    {!INDEXABLE && <meta name="robots" content="noindex" />}
+    <slot name="head" />
+  </head>
+  <body>
+    <TopBar lang={lang} productId={productId} isHub={isHub} />
+    <main>
+      <slot />
+    </main>
+    <Footer lang={lang} />
+  </body>
+</html>
+
+<style is:global>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--shell-ink);
+    background: var(--shell-ground);
+    font-family: var(--shell-font);
+  }
+  main {
+    flex: 1;
+  }
+  a {
+    color: var(--shell-accent);
+  }
+</style>

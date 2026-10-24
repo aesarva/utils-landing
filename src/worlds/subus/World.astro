@@ -1,0 +1,50 @@
+---
+// Мир-заглушка продукта: нейтральные значения оболочки, название, слоган, скачивание.
+import type { Lang } from '../../lib/schema';
+import type { ProductView } from '../../lib/products';
+import { formatSize } from '../../lib/products';
+import { t } from '../../i18n';
+
+interface Props {
+  lang: Lang;
+  product: ProductView;
+}
+const { lang, product } = Astro.props;
+const d = t(lang);
+const r = product.release;
+---
+
+<section class="world">
+  <h1>{product.name}</h1>
+  <p>{product.tagline[lang]}</p>
+  {
+    r.status === 'released' ? (
+      <p>
+        <a class="download" href={r.url}>{d.download}</a>
+        <span>
+          {r.version} · {formatSize(r.size, lang)} · {d.requires(product.requires.macos)}
+        </span>
+      </p>
+    ) : (
+      <p class="soon">{d.comingSoon}</p>
+    )
+  }
+  <p><a href={`https://github.com/${product.repo}`}>{d.source}</a></p>
+</section>
+
+<style is:global>
+  :root {
+    --shell-ink: #1c1c1e;
+    --shell-ground: #f5f5f7;
+    --shell-accent: #0a5bd8;
+    --shell-font: system-ui, sans-serif;
+  }
+</style>
+
+<style>
+  .world {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+</style>

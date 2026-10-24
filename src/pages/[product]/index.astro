@@ -1,0 +1,12 @@
+---
+import { getCollection } from 'astro:content';
+import ProductPage from '../../views/ProductPage.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('products');
+  return entries.map((e) => ({ params: { product: e.data.id } }));
+}
+const { product } = Astro.params;
+---
+
+<ProductPage lang="ru" productId={product} />

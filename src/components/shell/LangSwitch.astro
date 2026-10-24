@@ -1,0 +1,17 @@
+---
+// Переключатель языка: обычная ссылка на ту же страницу в другом языке, без JS.
+import type { Lang } from '../../lib/schema';
+import { otherLang, pagePath } from '../../lib/routes';
+import { t } from '../../i18n';
+
+interface Props {
+  lang: Lang;
+  productId?: string;
+}
+const { lang, productId } = Astro.props;
+const other = otherLang(lang);
+---
+
+<a class="lang-switch" href={pagePath(other, productId)} hreflang={other} lang={other}>
+  {t(lang).langLabel}
+</a>

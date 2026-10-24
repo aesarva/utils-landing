@@ -1,0 +1,21 @@
+---
+// Страница продукта: оболочка + мир продукта.
+import type { Lang } from '../lib/schema';
+import { loadProducts } from '../lib/load';
+import { worlds } from '../worlds/registry';
+import Shell from '../layouts/Shell.astro';
+
+interface Props {
+  lang: Lang;
+  productId: string;
+}
+const { lang, productId } = Astro.props;
+const product = (await loadProducts()).find((p) => p.id === productId);
+if (!product) throw new Error(`нет продукта ${productId}`);
+const World = worlds[productId];
+if (!World) throw new Error(`нет мира для продукта ${productId}`);
+---
+
+<Shell lang={lang} title={`${product.name} — ${product.tagline[lang]}`} description={product.tagline[lang]} productId={productId}>
+  <World lang={lang} product={product} />
+</Shell>
