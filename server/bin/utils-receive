@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Приёмник релизов utils-landing. Вызывается ключом CI: ssh utils-deploy@сервер <sha> < сборка.tar.gz
 # (authorized_keys: restrict,command="/usr/local/bin/utils-receive").
-# Пустой stdin — откат: current переключается на уже лежащий релиз <sha>.
-# Коды: 0 — готово; 2 — плохой sha; 3 — пустой stdin, а релиза нет; 4 — архив (сжатый или распакованный) больше лимита или битый;
-# 5 — в сборке нет index.html, en/index.html или 404.html.
+# Пустой stdin — откат: current переключается на новейший из лежащих релизов этого <sha>.
+# Каждая выкладка — новый каталог releases/<sha>.<наносекунды>-<pid>; current переключается атомарно,
+# поэтому повторная выкладка того же sha не оставляет current висячей.
+# Коды: 0 — готово; 2 — плохой sha; 3 — пустой stdin, а релиза нет; 4 — архив больше лимита, битый или небезопасный
+# (симлинки, хардлинки, устройства, fifo, sparse, абсолютные пути и «..»);
+# 5 — в сборке нет index.html, en/index.html или 404.html; 6 — другая выкладка уже идёт (занят замок).
 set -euo pipefail
 
 ROOT=${UTILS_ROOT:-/srv/utils/site}
 MAX=${UTILS_MAX_BYTES:-52428800}
-# Лимит распакованного: сжатая «бомба» в 50 МБ иначе забила бы общий с VPN диск.
+# Лимит распакованного (сумма размеров файлов в архиве): сжатая «бомба» иначе забила бы общий с VPN диск.
 UNPACK_MAX=${UTILS_MAX_UNPACKED:-209715200}
 KEEP=5
 SHA=${SSH_ORIGINAL_COMMAND:-${1:-}}
@@ -20,43 +23,74 @@ fi
 
 RELEASES=$ROOT/releases
 mkdir -p "$RELEASES"
+
+UPLOAD=""
+INCOMING=""
+TMPLINK=""
+LOCKDIR=""
+cleanup() {
+  [[ -n $UPLOAD ]] && rm -rf "$UPLOAD"
+  [[ -n $INCOMING ]] && rm -rf "$INCOMING"
+  [[ -n $TMPLINK ]] && rm -f "$TMPLINK"
+  [[ -n $LOCKDIR ]] && rmdir "$LOCKDIR" 2>/dev/null
+  return 0
+}
+trap cleanup EXIT
+
+# Замок на всё: приём, проверка, переключение, откат, чистка. Занят — код 6.
+if command -v flock > /dev/null 2>&1; then
+  exec 9> "$ROOT/.lock"
+  if ! flock -n 9; then
+    echo "utils-receive: идёт другая выкладка" >&2
+    exit 6
+  fi
+else
+  # Запасной замок там, где нет flock (macOS в тестах): mkdir атомарен.
+  if ! mkdir "$ROOT/.lock.d" 2> /dev/null; then
+    echo "utils-receive: идёт другая выкладка" >&2
+    exit 6
+  fi
+  LOCKDIR=$ROOT/.lock.d
+fi
+
 UPLOAD=$(mktemp "$ROOT/.upload-XXXXXX")
-UNPACKED=$UPLOAD.tar
-INCOMING=$RELEASES/.incoming-$SHA
-trap 'rm -rf "$UPLOAD" "$UNPACKED" "$INCOMING"' EXIT
+INCOMING=$(mktemp -d "$ROOT/.incoming-XXXXXX")
 
 switch_current() {
-  ln -sfn "releases/$SHA" "$ROOT/current.tmp"
+  TMPLINK=$(mktemp -u "$ROOT/.current-XXXXXX")
+  ln -s "releases/$1" "$TMPLINK"
   # GNU mv -T подменяет ссылку атомарно; там, где его нет (macOS в тестах), — ln -sfn.
-  if ! mv -Tf "$ROOT/current.tmp" "$ROOT/current" 2>/dev/null; then
-    rm -f "$ROOT/current.tmp"
-    ln -sfn "releases/$SHA" "$ROOT/current"
+  if ! mv -Tf "$TMPLINK" "$ROOT/current" 2> /dev/null; then
+    rm -f "$TMPLINK"
+    ln -sfn "releases/$1" "$ROOT/current"
   fi
+  TMPLINK=""
 }
 
 prune() {
   local current n=0 d
   current=$(basename "$(readlink "$ROOT/current")")
-  # ls без -a не видит .incoming-* и .old-*; свежие — первыми.
-  # shellcheck disable=SC2045  # имена — только sha (hex), пробелов нет
-  for d in $(ls -1t "$RELEASES"); do
-    [[ $d == "$current" ]] && continue
+  # скрытые каталоги пропускаются; сортировка по метке времени в имени, новейшие — первыми.
+  while read -r d; do
+    [[ -z $d || $d == "$current" ]] && continue
     n=$((n + 1))
     ((n < KEEP)) && continue
     rm -rf "${RELEASES:?}/$d"
-  done
+  done < <(find "$RELEASES" -mindepth 1 -maxdepth 1 -type d ! -name '.*' | sed 's|.*/||' | sort -t. -k2,2r)
 }
 
 head -c $((MAX + 1)) > "$UPLOAD"
 SIZE=$(wc -c < "$UPLOAD" | tr -d ' ')
 
 if ((SIZE == 0)); then
-  if [[ ! -d $RELEASES/$SHA ]]; then
+  LATEST=$(find "$RELEASES" -mindepth 1 -maxdepth 1 -type d -name "$SHA.*" | sed 's|.*/||' | sort -t. -k2,2r | sed -n 1p)
+  if [[ -z $LATEST ]]; then
     echo "utils-receive: архива нет, и релиза $SHA на сервере нет" >&2
     exit 3
   fi
-  switch_current
-  echo "utils-receive: current → $SHA (откат)"
+  switch_current "$LATEST"
+  prune
+  echo "utils-receive: current → $LATEST (откат)"
   exit 0
 fi
 
@@ -65,37 +99,58 @@ if ((SIZE > MAX)); then
   exit 4
 fi
 
-# gzip распаковывается с отсечкой: больше лимита — отказ; сбой gzip (битый архив) — тоже отказ.
-# Код gzip 2 — предупреждение (нули после потока, их дописывает bsdtar), не ошибка.
-set +eo pipefail
-gzip -dc "$UPLOAD" 2>/dev/null | head -c $((UNPACK_MAX + 1)) > "$UNPACKED"
-gunzip_status=${PIPESTATUS[0]}
-set -eo pipefail
-gunzip_ok=$((gunzip_status == 0 || gunzip_status == 2))
-if (($(wc -c < "$UNPACKED") > UNPACK_MAX)); then
-  echo "utils-receive: распакованная сборка больше $UNPACK_MAX байт" >&2
+# Проверка архива ДО распаковки: только обычные файлы и каталоги, без абсолютных путей и «..»,
+# сумма размеров не больше лимита. Битый gzip/tar — тоже отказ.
+if ! python3 - "$UPLOAD" "$UNPACK_MAX" << 'PY'
+import sys, tarfile
+
+path, limit = sys.argv[1], int(sys.argv[2])
+total = 0
+try:
+    with tarfile.open(path, 'r:gz') as tf:
+        for m in tf:
+            name = m.name
+            if not name or '\0' in name or name.startswith('/') or '..' in name.split('/'):
+                sys.exit('небезопасный путь: %r' % name)
+            if m.type not in (tarfile.REGTYPE, tarfile.AREGTYPE, tarfile.DIRTYPE):
+                sys.exit('недопустимый тип члена архива: %r' % name)
+            if m.sparse is not None or any(k.startswith('GNU.sparse') for k in m.pax_headers):
+                sys.exit('sparse-файлы не принимаются: %r' % name)
+            if m.isreg():
+                total += m.size
+                if total > limit:
+                    sys.exit('распакованная сборка больше %d байт' % limit)
+except SystemExit:
+    raise
+except Exception as e:
+    sys.exit('архив не читается: %s' % e)
+PY
+then
+  echo "utils-receive: архив отклонён" >&2
   exit 4
 fi
-rm -rf "$INCOMING"
-mkdir -p "$INCOMING"
-if ((gunzip_ok == 0)) || ! tar -xf "$UNPACKED" -C "$INCOMING" 2>/dev/null; then
+
+if ! tar -xzf "$UPLOAD" -C "$INCOMING" --no-same-owner --no-same-permissions 2> /dev/null; then
   echo "utils-receive: архив не распаковался" >&2
   exit 4
 fi
-rm -f "$UNPACKED"
-if [[ ! -f $INCOMING/index.html || ! -f $INCOMING/en/index.html || ! -f $INCOMING/404.html ]]; then
-  echo "utils-receive: в сборке нет index.html, en/index.html или 404.html" >&2
-  exit 5
+# Второй рубеж: после распаковки не должно быть ничего, кроме файлов и каталогов.
+if [[ -n $(find "$INCOMING" ! -type f ! -type d -print -quit) ]]; then
+  echo "utils-receive: в сборке есть не файлы и не каталоги" >&2
+  exit 4
 fi
+for f in index.html en/index.html 404.html; do
+  if [[ ! -f $INCOMING/$f || -L $INCOMING/$f ]]; then
+    echo "utils-receive: в сборке нет index.html, en/index.html или 404.html" >&2
+    exit 5
+  fi
+done
 
 printf '%s %s\n' "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$INCOMING/release.txt"
 chmod -R a+rX "$INCOMING"
-if [[ -d $RELEASES/$SHA ]]; then
-  rm -rf "$RELEASES/.old-$SHA"
-  mv "$RELEASES/$SHA" "$RELEASES/.old-$SHA"
-fi
-mv "$INCOMING" "$RELEASES/$SHA"
-rm -rf "$RELEASES/.old-$SHA"
-switch_current
+NAME=$SHA.$(python3 -c 'import time; print("%020d" % time.time_ns())')-$$
+mv "$INCOMING" "$RELEASES/$NAME"
+INCOMING=""
+switch_current "$NAME"
 prune
-echo "utils-receive: current → $SHA"
+echo "utils-receive: current → $NAME"

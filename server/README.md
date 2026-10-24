@@ -17,7 +17,7 @@
 scp -i ~/.ssh/serverspace server/nginx/utils-http.conf root@185.36.144.150:/etc/nginx/sites-available/utils-http.conf
 ssh -i ~/.ssh/serverspace root@185.36.144.150 '
   ln -s /etc/nginx/sites-available/utils-http.conf /etc/nginx/sites-enabled/utils-http.conf &&
-  nginx -t && systemctl reload nginx'
+  { nginx -t && systemctl reload nginx || { rm -f /etc/nginx/sites-enabled/utils-http.conf; false; }; }'
 ```
 
 ## 2. Сертификат
@@ -31,10 +31,10 @@ ssh -i ~/.ssh/serverspace root@185.36.144.150 '
   /root/.acme.sh/acme.sh --install-cert -d utils.cyber-tech.online \
     --fullchain-file /etc/nginx/ssl/utils.cyber-tech.online/fullchain.pem \
     --key-file /etc/nginx/ssl/utils.cyber-tech.online/privkey.pem \
-    --reloadcmd "systemctl reload nginx"'
+    --reloadcmd "nginx -t && systemctl reload nginx"'
 ```
 
-Продление делает cron `acme.sh`, `--reloadcmd` перезагружает nginx сам.
+Продление делает cron `acme.sh`, `--reloadcmd` проверяет конфиг и перезагружает nginx сам.
 
 ## 3. HTTPS-конфиг (127.0.0.1:8443 за xray)
 
@@ -42,7 +42,7 @@ ssh -i ~/.ssh/serverspace root@185.36.144.150 '
 scp -i ~/.ssh/serverspace server/nginx/utils-https.conf root@185.36.144.150:/etc/nginx/sites-available/utils-https.conf
 ssh -i ~/.ssh/serverspace root@185.36.144.150 '
   ln -s /etc/nginx/sites-available/utils-https.conf /etc/nginx/sites-enabled/utils-https.conf &&
-  nginx -t && systemctl reload nginx'
+  { nginx -t && systemctl reload nginx || { rm -f /etc/nginx/sites-enabled/utils-https.conf; false; }; }'
 ```
 
 До первой выкладки `/srv/utils/site/current` нет, и сайт отвечает 404: это нормально.
@@ -53,7 +53,8 @@ ssh -i ~/.ssh/serverspace root@185.36.144.150 '
 scp -i ~/.ssh/serverspace server/bin/utils-receive root@185.36.144.150:/usr/local/bin/utils-receive
 ssh -i ~/.ssh/serverspace root@185.36.144.150 '
   useradd --system --create-home --shell /bin/sh utils-deploy &&
-  install -o utils-deploy -d /srv/utils /srv/utils/site &&
+  install -o root -g root -m 755 -d /srv/utils &&
+  install -o utils-deploy -d /srv/utils/site &&
   chown root:root /usr/local/bin/utils-receive && chmod 755 /usr/local/bin/utils-receive'
 ```
 
@@ -68,14 +69,15 @@ ssh -i ~/.ssh/serverspace root@185.36.144.150 '
 ssh-keygen -t ed25519 -N '' -C utils-deploy-ci -f /tmp/utils-deploy-key
 ```
 
-Публичную часть — в `authorized_keys` пользователя `utils-deploy` одной строкой:
+Публичную часть — в `authorized_keys` одной строкой. Файл и каталог `.ssh` принадлежат root (группа
+`utils-deploy` только читает), поэтому приёмник, запущенный от `utils-deploy`, не может их переписать:
 
 ```sh
 PUB=$(cat /tmp/utils-deploy-key.pub)
 ssh -i ~/.ssh/serverspace root@185.36.144.150 "
-  install -o utils-deploy -m 700 -d /home/utils-deploy/.ssh &&
+  install -o root -g utils-deploy -m 750 -d /home/utils-deploy/.ssh &&
   echo 'restrict,command=\"/usr/local/bin/utils-receive\" $PUB' > /home/utils-deploy/.ssh/authorized_keys &&
-  chown utils-deploy /home/utils-deploy/.ssh/authorized_keys && chmod 600 /home/utils-deploy/.ssh/authorized_keys"
+  chown root:utils-deploy /home/utils-deploy/.ssh/authorized_keys && chmod 640 /home/utils-deploy/.ssh/authorized_keys"
 ```
 
 Получившаяся строка: `restrict,command="/usr/local/bin/utils-receive" ssh-ed25519 AAAA… utils-deploy-ci`.
@@ -86,7 +88,18 @@ ssh -i ~/.ssh/serverspace root@185.36.144.150 "
 
 ```sh
 gh secret set UTILS_DEPLOY_KEY < /tmp/utils-deploy-key
-ssh-keyscan -t ed25519 185.36.144.150 | gh secret set UTILS_KNOWN_HOSTS
+```
+
+`UTILS_KNOWN_HOSTS` — не из `ssh-keyscan` (ему нельзя доверять), а ключ хоста, полученный по уже
+аутентифицированному админскому соединению:
+
+```sh
+KH=$(ssh -i ~/.ssh/serverspace root@185.36.144.150 cat /etc/ssh/ssh_host_ed25519_key.pub | awk '{print "185.36.144.150 " $1 " " $2}')
+[ -n "$KH" ] || { echo "пустой ключ хоста" >&2; exit 1; }
+printf '%s\n' "$KH" | gh secret set UTILS_KNOWN_HOSTS
+```
+
+```sh
 shred -u /tmp/utils-deploy-key /tmp/utils-deploy-key.pub 2>/dev/null || rm -P /tmp/utils-deploy-key /tmp/utils-deploy-key.pub
 ```
 
@@ -101,15 +114,16 @@ curl -s https://utils.cyber-tech.online/release.txt
 
 ## Откат
 
-Переключить `current` на уже лежащий на сервере релиз (пустой stdin, хранятся 5 последних):
+Переключить `current` на новейший из лежащих на сервере релизов этого sha (пустой stdin; каждая выкладка — каталог `releases/<sha>.<метка>`, хранятся 5 последних, текущий не удаляется):
 
 ```sh
 ssh -i /путь/к/ключу-ci utils-deploy@185.36.144.150 <sha> < /dev/null
 ```
 
-Код 3 — такого релиза на сервере нет. Список лежащих релизов: `ls -1t /srv/utils/site/releases` (от root).
+Код 3 — релиза с таким sha на сервере нет. Список лежащих релизов: `ls -1t /srv/utils/site/releases` (от root).
 
 ## Коды выхода приёмника
 
 0 — готово; 2 — плохой sha; 3 — откат на отсутствующий релиз; 4 — архив больше лимита (50 МБ сжатого,
-200 МБ распакованного) или битый; 5 — в сборке нет `index.html`, `en/index.html` или `404.html`.
+200 МБ суммарного размера файлов), битый или небезопасный (симлинки, хардлинки, устройства, fifo, sparse,
+абсолютные пути, `..`); 5 — в сборке нет `index.html`, `en/index.html` или `404.html`; 6 — идёт другая выкладка (занят замок `/srv/utils/site/.lock`), повторить позже.
