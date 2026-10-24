@@ -141,7 +141,7 @@ describe('utils-receive', () => {
 
   describe('небезопасные архивы', () => {
     const sentinel = () => join(outside, 'sentinel');
-    const cases: [string, Member[]][] = [
+    const cases: [string, Member[], { unpacked?: number; message?: string }?][] = [
       ['симлинк на внешний файл', [{ name: 'release.txt', kind: 'sym', link: '' }]],
       ['симлинк на каталог', [{ name: 'pub', kind: 'sym', link: '' }]],
       ['хардлинк', [{ name: 'hl', kind: 'hard', link: '' }]],
@@ -151,12 +151,12 @@ describe('utils-receive', () => {
       ['устройство', [{ name: 'dev', kind: 'chr' }]],
       ['sparse-член', [{ name: 'sp', kind: 'sparse' }]],
       ['огромные PAX-метаданные', [{ name: 'px', kind: 'pax' }]],
-      ['слишком много членов', [{ name: 'm', kind: 'many', size: 20001 }]],
+      ['слишком много членов', [{ name: 'm', kind: 'many', size: 20001 }], { unpacked: 100 * 1024 * 1024, message: 'слишком много членов' }],
       ['каталог release.txt', [{ name: 'release.txt', kind: 'dir' }]],
       ['файл ./release.txt', [{ name: './release.txt', kind: 'file' }]],
       ['логический размер больше лимита', [{ name: 'big', kind: 'file', size: 2 * 1024 * 1024 }]],
     ];
-    for (const [what, members] of cases) {
+    for (const [what, members, extra] of cases) {
       it(`${what}: код 4, current прежний, внешний файл цел`, () => {
         writeFileSync(sentinel(), 'keep');
         const fixed = members.map((m) => {
@@ -166,10 +166,11 @@ describe('utils-receive', () => {
         });
         receive(A, archive('A'));
         const before = current();
-        const r = receive(B, crafted(fixed), { UTILS_MAX_UNPACKED: String(1024 * 1024) });
+        const r = receive(B, crafted(fixed), { UTILS_MAX_UNPACKED: String(extra?.unpacked ?? 1024 * 1024) });
         expect(r.status).toBe(4);
         // Отказ должен дать именно проверка до распаковки, а не случайный сбой tar.
         expect(String(r.stderr)).toContain('отклонён');
+        if (extra?.message) expect(String(r.stderr)).toContain(extra.message);
         expect(current()).toBe(before);
         expect(served()).toBe('A');
         expect(releases()).toHaveLength(1);
