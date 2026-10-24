@@ -1,6 +1,8 @@
 # Публикация лендинга: push в develop, ручной запуск и ежечасное обновление данных о релизах
 # выкладываются на https://utils.cyber-tech.online. Сервер принимает архив только командой utils-receive.
-# Секреты: UTILS_DEPLOY_KEY — приватный ключ utils-deploy; UTILS_KNOWN_HOSTS — строка ssh-keyscan сервера.
+# Секреты окружения production (только ветка develop): UTILS_DEPLOY_KEY — приватный ключ utils-deploy;
+# UTILS_KNOWN_HOSTS — строка known_hosts, полученная по админскому SSH (не ssh-keyscan, см. server/README.md).
+# Ручной запуск с другой ветки собирает и тестирует, но не выкладывает.
 name: publish
 
 on:
@@ -20,7 +22,36 @@ permissions:
   contents: read
 
 jobs:
+  # Только по расписанию и без npm (bash, curl, jq): дешёвая проверка, нужна ли сборка вообще.
+  # run=true, если сайт отдаёт не голову develop (отменённый или упавший push), если версия или статус
+  # релиза в GitHub отличаются от живого releases.json, или если что-то не удалось получить.
+  check:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+      stale: ${{ steps.decide.outputs.stale }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            src/content/products
+
+      - id: decide
+        name: Сравнить сайт с головой develop и релизами в GitHub
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/deploy-check.sh https://utils.cyber-tech.online "$(git rev-parse HEAD)" .
+
   build:
+    needs: check
+    # check пропущен (push, ручной запуск) — сборка идёт; по расписанию — только если check сказал run=true
+    # или сам упал (неопределённость — собираем). !cancelled() нужен, чтобы пропущенный check не пропускал build.
+    if: ${{ !cancelled() && (github.event_name != 'schedule' || needs.check.outputs.run == 'true' || needs.check.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -54,8 +85,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      # Только по расписанию: если живой releases.json совпал со свежим, выкладывать нечего.
-      # Не удалось получить живой файл — считаем, что изменилось.
+      # Только по расписанию: если живой releases.json совпал со свежим, данные выкладывать незачем
+      # (deploy всё равно пойдёт, если check увидел на сайте старый коммит). Не удалось получить живой файл —
+      # считаем, что изменилось.
       - id: releases
         name: Сравнить releases.json с опубликованным
         if: github.event_name == 'schedule'
@@ -71,10 +103,16 @@ jobs:
           retention-days: 1
 
   deploy:
-    needs: build
-    if: github.event_name != 'schedule' || needs.build.outputs.changed == 'true'
+    needs: [check, build]
+    # Выкладывается только develop. По расписанию — если сайт отстал от develop (stale) или изменились релизы.
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success' && github.ref == 'refs/heads/develop' &&
+      (github.event_name != 'schedule' || needs.check.outputs.stale == 'true' || needs.check.result == 'failure' ||
+      needs.build.outputs.changed == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Секреты выкладки лежат в окружении production, доступном только ветке develop.
+    environment: production
     env:
       SERVER: utils-deploy@185.36.144.150
       SITE: https://utils.cyber-tech.online
@@ -103,7 +141,8 @@ jobs:
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy
           chmod 600 ~/.ssh/deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          # Код 6 — приёмник занят другой выкладкой: до 3 попыток с паузой 20 с. Остальные ненулевые коды — сразу сбой.
+          # Код 6 — приёмник занят другой выкладкой: до 3 попыток с паузой 20 с. Остальные ненулевые коды
+          # (в том числе 7 — загрузка не уложилась в срок приёмника) — сразу сбой, без повтора.
           for attempt in 1 2 3; do
             rc=0
             ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes "$SERVER" "$SHA" < site.tar.gz || rc=$?
