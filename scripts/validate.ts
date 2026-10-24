@@ -4,17 +4,17 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { en } from '../src/i18n/en';
 import { ru } from '../src/i18n/ru';
-import { registryIds, validateSite } from '../src/lib/validate';
+import { extractCss, registryIds, validateSite } from '../src/lib/validate';
 import { readProducts } from './load-products';
 
 const root = process.argv[2] ?? process.cwd();
 const worldsDir = join(root, 'src/worlds');
 
-/** Склеенный текст всех .astro и .css внутри папки мира. */
+/** Склеенный CSS мира: блоки <style> из .astro и файлы .css. */
 function readStyles(dir: string): string {
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
     .filter((f) => /\.(astro|css)$/.test(f))
-    .map((f) => readFileSync(join(dir, f), 'utf8'))
+    .map((f) => extractCss(f, readFileSync(join(dir, f), 'utf8')))
     .join('\n');
 }
 

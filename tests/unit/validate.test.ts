@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { registryIds, validateSite, type SiteInput } from '../../src/lib/validate';
+import { extractCss, registryIds, validateSite, type SiteInput } from '../../src/lib/validate';
 
 const product = (id: string, order: number, over: Record<string, unknown> = {}) => ({
   path: `src/content/products/${id}.yaml`,
@@ -149,7 +149,7 @@ describe('validateSite', () => {
 
   it('закомментированная переменная не считается', () => {
     const input = base();
-    input.worldStyles.aa = '/* --shell-ink: #000; */ <!-- --shell-ink: #111 --> ' + styles.replace('--shell-ink: #000;', '');
+    input.worldStyles.aa = '/* --shell-ink: #000; */ ' + styles.replace('--shell-ink: #000;', '');
     expect(validateSite(input)).toContain('src/worlds/aa: нет --shell-ink');
   });
 
@@ -169,7 +169,25 @@ describe('validateSite', () => {
   });
 });
 
+describe('CSS мира', () => {
+  it('url("//…") перед объявлениями не скрывает их', () => {
+    const input = base();
+    input.worldStyles.aa = 'a { background-image: url("//cdn.example.com/bg.png"); } ' + styles;
+    expect(validateSite(input)).toEqual([]);
+  });
+
+  it('extractCss берёт только блоки style из .astro', () => {
+    const astro = '<!-- --shell-ink: #111 --><div></div><style>--shell-ground: #fff;</style>';
+    expect(extractCss('World.astro', astro)).toBe('--shell-ground: #fff;');
+    expect(extractCss('a.css', 'x{}')).toBe('x{}');
+  });
+});
+
 describe('registryIds', () => {
+  it('комментарий сразу после двоеточия', () => {
+    expect(registryIds('export const worlds = { ochre:// first, second\n Ochre,\n subus }')).toEqual(['ochre', 'subus']);
+  });
+
   it('разбирает кавычки, комментарии, короткую запись и запятую в конце', () => {
     const source = `export const worlds: Record<string, X> = {
   // первый мир

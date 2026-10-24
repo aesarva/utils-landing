@@ -20,7 +20,7 @@ const ruError = z.locales.ru().localeError;
 
 /** Ключи `worlds = { … }` из текста registry.ts: без комментариев и кавычек, с короткой записью `ochre,`. */
 export function registryIds(source: string): string[] {
-  const clean = stripComments(source);
+  const clean = stripJsComments(source);
   const body = /worlds[^=]*=\s*\{([^}]*)\}/.exec(clean)?.[1] ?? '';
   return body
     .split(',')
@@ -28,12 +28,23 @@ export function registryIds(source: string): string[] {
     .filter(Boolean);
 }
 
-/** Убирает комментарии `/* *\/`, `<!-- -->` и строчные `//` (не после `:`, чтобы не задеть URL). */
-export function stripComments(text: string): string {
-  return text
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+/** Убирает JS-комментарии одним проходом, не трогая строки (регистр миров — TypeScript). */
+function stripJsComments(text: string): string {
+  return text.replace(
+    /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
+    '$1',
+  );
+}
+
+/** Убирает CSS-комментарии `/* *\/` (строчных `//` в CSS нет). */
+function stripCssComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+/** CSS из файла мира: содержимое блоков `<style>` в .astro, .css целиком. */
+export function extractCss(file: string, text: string): string {
+  if (file.endsWith('.css')) return text;
+  return [...text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
 }
 
 const SHELL_VARS = ['--shell-ink', '--shell-ground', '--shell-accent', '--shell-font'];
@@ -119,7 +130,7 @@ export function validateSite(input: SiteInput): string[] {
 
   // Переменные оболочки: в каждом мире и в хабе.
   for (const key of [...ids, 'hub']) {
-    const styles = Object.hasOwn(input.worldStyles, key) ? stripComments(input.worldStyles[key]) : undefined;
+    const styles = Object.hasOwn(input.worldStyles, key) ? stripCssComments(input.worldStyles[key]) : undefined;
     if (styles === undefined) {
       // Для продукта о пропавшей папке уже сказано выше; хаб проверяем отдельно.
       if (key === 'hub') errors.push('src/worlds/hub: нет папки хаба');
