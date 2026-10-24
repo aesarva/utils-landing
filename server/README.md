@@ -9,7 +9,7 @@
 запущен) конфиги не проверялись; при ошибке `nginx -t` reload не делать.
 
 Порядок: http-конфиг → `nginx -t` и reload → сертификат → https-конфиг → `nginx -t` и reload →
-пользователь, приёмник, ключ → секреты в GitHub → первый push в `develop`.
+пользователь, приёмник, ключ → окружение `production` и его секреты в GitHub → первый push в `develop`.
 
 ## 1. HTTP-конфиг (порт 80, нужен для выпуска сертификата)
 
@@ -87,12 +87,16 @@ ssh -i ~/.ssh/serverspace root@185.36.144.150 "
 
 Получившаяся строка: `restrict,command="/usr/local/bin/utils-receive" ssh-ed25519 AAAA… utils-deploy-ci`.
 
-## 6. Секреты GitHub
+## 6. Окружение и секреты GitHub
 
-В репозитории `aesarva/utils-landing`:
+Секреты выкладки лежат в окружении `production` репозитория `aesarva/utils-landing`; выкладка в него
+разрешена только из ветки `develop` (задача `deploy` в `publish.yml` объявляет `environment: production`):
 
 ```sh
-gh secret set UTILS_DEPLOY_KEY < /tmp/utils-deploy-key
+gh api -X PUT repos/aesarva/utils-landing/environments/production \
+  -F 'deployment_branch_policy[protected_branches]=false' -F 'deployment_branch_policy[custom_branch_policies]=true'
+gh api -X POST repos/aesarva/utils-landing/environments/production/deployment-branch-policies -f name=develop -f type=branch
+gh secret set UTILS_DEPLOY_KEY --env production --repo aesarva/utils-landing < /tmp/utils-deploy-key
 ```
 
 `UTILS_KNOWN_HOSTS` — не из `ssh-keyscan` (ему нельзя доверять), а ключ хоста, полученный по уже
@@ -101,7 +105,7 @@ gh secret set UTILS_DEPLOY_KEY < /tmp/utils-deploy-key
 ```sh
 KH=$(ssh -i ~/.ssh/serverspace root@185.36.144.150 cat /etc/ssh/ssh_host_ed25519_key.pub | awk '{print "185.36.144.150 " $1 " " $2}')
 [ -n "$KH" ] || { echo "пустой ключ хоста" >&2; exit 1; }
-printf '%s\n' "$KH" | gh secret set UTILS_KNOWN_HOSTS
+printf '%s\n' "$KH" | gh secret set UTILS_KNOWN_HOSTS --env production --repo aesarva/utils-landing
 ```
 
 ```sh
@@ -110,7 +114,7 @@ shred -u /tmp/utils-deploy-key /tmp/utils-deploy-key.pub 2>/dev/null || rm -P /t
 
 ## 7. Первая выкладка и проверка
 
-Первый push в `develop` запускает `publish.yml`. Проверка:
+Первый push в `develop` запускает `publish.yml` (сервер, окружение и секреты уже готовы). Проверка:
 
 ```sh
 curl -sI https://utils.cyber-tech.online/ | grep -iE 'HTTP|content-security|cache-control'

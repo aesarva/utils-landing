@@ -379,16 +379,22 @@ tests/unit/*.test.ts  tests/unit/fixtures/  tests/e2e/*.spec.ts
 
 ### Task 11: Выход в сеть (заглушки, без индексации)
 
-Внешние действия: создание репозитория, секреты, изменения на сервере. **Перед Step 1 спросить пользователя явное «да».**
+Внешние действия: создание репозитория, окружение и секреты, изменения на сервере. **Перед Step 1 спросить пользователя явное «да».**
+Порядок важен: сервер, окружение и секреты готовы **до** первого push `develop`, иначе первые запуски `publish.yml` красные.
 
-- [ ] **Step 1:** Влить `chore/scaffold` и последующие ветки в `develop` (`--no-ff`). `gh repo create aesarva/utils-landing --private --source . --remote origin`, затем `git push -u origin main develop`, `gh repo edit aesarva/utils-landing --default-branch develop`.
-- [ ] **Step 2:** Ключ выкладки: `ssh-keygen -t ed25519 -N '' -C utils-deploy -f <scratchpad>/utils-deploy`.
-  - `gh secret set UTILS_DEPLOY_KEY < <scratchpad>/utils-deploy`;
-  - `ssh-keyscan -t ed25519 185.36.144.150 | gh secret set UTILS_KNOWN_HOSTS`;
-  - после установки на сервер удалить приватный ключ из scratchpad.
-- [ ] **Step 3:** Сервер (`ssh -i ~/.ssh/serverspace root@185.36.144.150`): выполнить `server/README.md` по шагам. Перед каждым `systemctl reload nginx` — `nginx -t`. Проверить, что `atlas.hollow-haven.com` и `cyber-tech.online` после reload отвечают как раньше (`curl -sI` до и после).
-- [ ] **Step 4:** Проверить, что xray пропускает SNI `utils.cyber-tech.online` в nginx: `curl -sI https://utils.cyber-tech.online/` → ответ nginx (сертификат валиден). Если xray не отдаёт, остановиться и показать пользователю конфиг xray — не править его без согласия.
-- [ ] **Step 5:** `gh workflow run publish.yml --ref develop`, `gh run watch` → обе задачи зелёные. `scripts/smoke.sh https://utils.cyber-tech.online` → 0. `curl -s https://utils.cyber-tech.online/robots.txt` → `Disallow: /`.
+- [ ] **Step 1: Репозиторий без запуска CI.** Влить `chore/scaffold` и последующие ветки в `develop` (`--no-ff`). `gh repo create aesarva/utils-landing --private`, `git remote add origin git@github.com:aesarva/utils-landing.git`, `git push -u origin main` (push в `main` workflow не запускает). `develop` пока не пушить.
+- [ ] **Step 2: Сервер** (`ssh -i ~/.ssh/serverspace root@185.36.144.150`): `server/README.md`, шаги 1–5 (http-конфиг, сертификат, https-конфиг, пользователь и приёмник, ключ CI). Ключ выкладки генерировать в scratchpad: `ssh-keygen -t ed25519 -N '' -C utils-deploy-ci -f <scratchpad>/utils-deploy-key` (путь подставить в команды README вместо `/tmp`). Перед каждым `systemctl reload nginx` — `nginx -t`. Проверить, что `atlas.hollow-haven.com` и `cyber-tech.online` после reload отвечают как раньше (`curl -sI` до и после).
+- [ ] **Step 3: Окружение `production` и секреты** (`server/README.md`, шаг 6):
+  - окружение `production`, выкладка разрешена только из ветки `develop`:
+    `gh api -X PUT repos/aesarva/utils-landing/environments/production -F 'deployment_branch_policy[protected_branches]=false' -F 'deployment_branch_policy[custom_branch_policies]=true'`,
+    затем `gh api -X POST repos/aesarva/utils-landing/environments/production/deployment-branch-policies -f name=develop -f type=branch`;
+  - `gh secret set UTILS_DEPLOY_KEY --env production --repo aesarva/utils-landing < <scratchpad>/utils-deploy-key`;
+  - `UTILS_KNOWN_HOSTS` — ключ хоста по уже аутентифицированному админскому SSH, **не** `ssh-keyscan` (Ruling R11), та же команда, что в `server/README.md`:
+    `ssh -i ~/.ssh/serverspace root@185.36.144.150 cat /etc/ssh/ssh_host_ed25519_key.pub | awk '{print "185.36.144.150 " $1 " " $2}'` → проверить, что строка не пустая → `gh secret set UTILS_KNOWN_HOSTS --env production --repo aesarva/utils-landing`;
+  - удалить ключ из scratchpad (`shred -u` или `rm -P`).
+  Если тариф не даёт окружений приватному репозиторию, остановиться и спросить пользователя: запасной вариант — секреты репозитория (`gh secret set` без `--env`) и удаление строки `environment: production` из `publish.yml` (выкладку из чужих веток всё равно отсекает условие `github.ref == 'refs/heads/develop'`).
+- [ ] **Step 4:** Проверить, что xray пропускает SNI `utils.cyber-tech.online` в nginx: `curl -sI https://utils.cyber-tech.online/` без `-k` → ответ nginx (до первой выкладки 404), сертификат валиден. Если xray не отдаёт, остановиться и показать пользователю конфиг xray — не править его без согласия. После проверки сертификата — решить с пользователем про HSTS (`server/README.md`, шаг 3).
+- [ ] **Step 5: Первый push.** `git push -u origin develop`, `gh repo edit aesarva/utils-landing --default-branch develop` (расписание работает только с ветки по умолчанию). `gh run watch` → `build` и `deploy` зелёные. `scripts/smoke.sh https://utils.cyber-tech.online` → 0. `curl -s https://utils.cyber-tech.online/robots.txt` → `Disallow: /`. Ближайший часовой запуск: `check` зелёный, `run=false`, `build` и `deploy` пропущены.
 - [ ] **Step 6:** Записать в `server/README.md` фактическое состояние (дата, что применено), коммит `docs(server): applied on 2026-10-xx`, push.
 
 ---

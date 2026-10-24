@@ -198,18 +198,24 @@ GitHub Actions запускается только с ветки по умолч
 Запуск: push в `develop`, расписание `17 * * * *` (раз в час) и `workflow_dispatch`.
 `concurrency: publish` без отмены, токену GitHub — только чтение.
 
+- `check` (только для расписания, без npm: bash, curl, jq — `scripts/deploy-check.sh`): сравнивает
+  живой `release.txt` с головой `develop` и живой `releases.json` с последними релизами в GitHub
+  (статус и версия). Всё совпало — `build` и `deploy` пропускаются; сайт отстал от `develop`
+  (отменённый или упавший push), релиз изменился или что-то не получено — сборка идёт.
 - `build`: checkout `develop` без сохранения учётных данных, Node из `.nvmrc`, `npm ci`, `npm test`,
   `npm run build` с `GITHUB_TOKEN` (fetch-releases), `tar -C dist -czf site.tar.gz .`,
   артефакт на 1 день. Ключа выкладки здесь нет.
   - Только для расписания: шаг сравнивает `dist/releases.json` с
     `https://utils.cyber-tech.online/releases.json`. Совпали — выход `changed=false`, и `deploy`
     пропускается. Не удалось получить живой файл — считается, что изменилось.
-- `deploy` (если push, ручной запуск или `changed=true`): скачивает артефакт,
+- `deploy` (только ветка `develop`, окружение `production`; push, ручной запуск, `changed=true`
+  или сайт отстал от `develop`): скачивает артефакт,
   `ssh -i key utils-deploy@185.36.144.150 "$GITHUB_SHA" < site.tar.gz`, затем до 6 попыток
   с паузой 5 с проверяет, что `release.txt` начинается с `$GITHUB_SHA` и что живой
   `releases.json` совпадает с собранным. Повторная выкладка того же коммита со свежими релизами
   штатна: приёмник заменяет релиз с тем же sha.
-- Секреты: `UTILS_DEPLOY_KEY` (приватный ключ), `UTILS_KNOWN_HOSTS` (`ssh-keyscan` сервера).
+- Секреты окружения `production`: `UTILS_DEPLOY_KEY` (приватный ключ), `UTILS_KNOWN_HOSTS` (ключ хоста,
+  полученный по админскому SSH, не `ssh-keyscan`).
 
 ### Сервер
 
@@ -229,7 +235,8 @@ GitHub Actions запускается только с ветки по умолч
   - обязательные файлы сборки: `index.html`, `en/index.html`, `404.html`;
   - пустой stdin — откат на уже лежащий релиз;
   - пишет `release.txt` (`<sha> <время UTC>`);
-  - коды выхода как у атласа (0, 2, 3, 4, 5).
+  - коды выхода как у атласа (0, 2, 3, 4, 5), плюс 6 — идёт другая выкладка (замок) и 7 — загрузка
+    не уложилась в срок (`UTILS_UPLOAD_TIMEOUT`, 300 с).
 - `server/nginx/utils-http.conf` — `:80`, `/.well-known/acme-challenge/` из `/var/www/acme`,
   остальное 301 на https.
 - `server/nginx/utils-https.conf` — `listen 127.0.0.1:8443 ssl`, `http2 on`,
@@ -339,6 +346,9 @@ E2E и unit-тесты работают по снимку (`RELEASES_OFFLINE=1`)
 шрифта: они берут переменные мира `--shell-ink`, `--shell-ground`, `--shell-accent`,
 `--shell-font`. Положение навигации одинаково на всех страницах: верх страницы — возврат в хаб
 и переключатель языка, низ — футер (CyberTech team, ссылка на GitHub `aesarva`, год).
+Оболочка ставит на `<html>` атрибут `data-world="<id>"` (хаб и 404 — `hub`); мир объявляет переменные
+`--shell-*` и любые глобальные стили только под `:root[data-world="<id>"]`, потому что CSS всех миров
+может попасть в бандл любой страницы. Валидатор отвергает объявления `--shell-*` вне такого правила.
 
 ## Вне рамок
 
