@@ -51,6 +51,20 @@ describe('parseLatestRelease', () => {
     expect(r.release.size).toBeGreaterThan(20);
   });
 
+  it('url ассета не из репозитория продукта (репо переименован) → error, снимок остаётся', () => {
+    const body = fx('lidless-latest');
+    const r = parseLatestRelease({ repo: 'aesarva/renamed', dmg: 'Lidless' }, { status: 200, body });
+    expect(r.kind).toBe('error');
+    if (r.kind === 'error') expect(r.message).toContain('https://github.com/aesarva/renamed/releases/download/');
+  });
+
+  it('url ассета с префиксом репозитория-однофамильца → error', () => {
+    const body = fx('lidless-latest') as { assets: { name: string; browser_download_url: string }[] };
+    const asset = body.assets.find((a) => a.name === 'Lidless-0.3.0.dmg')!;
+    asset.browser_download_url = 'https://github.com/aesarva/lidless-fork/releases/download/v0.3.0/Lidless-0.3.0.dmg';
+    expect(parseLatestRelease(lidless, { status: 200, body }).kind).toBe('error');
+  });
+
   it('draft и prerelease → error', () => {
     const base = fx('ochre-latest') as object;
     expect(parseLatestRelease(ochre, { status: 200, body: { ...base, draft: true } }).kind).toBe('error');
@@ -71,6 +85,15 @@ describe('mergeReleases', () => {
     const { releases, warnings } = mergeReleases(['a'], {}, { a: { kind: 'error', message: 'boom' } });
     expect(releases).toEqual({ a: { status: 'soon' } });
     expect(warnings).toHaveLength(1);
+  });
+
+  it('id constructor: унаследованные свойства снимка и результатов не берутся', () => {
+    const error = { kind: 'error', message: 'boom' } as const;
+    expect(mergeReleases(['constructor'], {}, { constructor: error }).releases).toEqual({ constructor: { status: 'soon' } });
+    const { releases, warnings } = mergeReleases(['constructor', 'toString'], {}, {});
+    expect(releases).toEqual({ constructor: { status: 'soon' }, toString: { status: 'soon' } });
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain('нет результата запроса');
   });
 
   it('ok заменяет запись; лишние id выпадают; ключи отсортированы', () => {

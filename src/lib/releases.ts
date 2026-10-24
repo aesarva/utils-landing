@@ -27,11 +27,18 @@ export function parseLatestRelease(
   const assets = Array.isArray(body.assets) ? (body.assets as Record<string, unknown>[]) : [];
   const asset = assets.find((a) => a?.name === wanted);
   if (!asset) return err(`${repo}: в релизе ${tag} нет ассета ${wanted}`);
+  // Ссылка должна вести в репозиторий продукта: у переименованного или перенесённого репо она другая,
+  // и валидатор отверг бы запись. Это ошибка запроса — остаётся снимок, сборка не падает.
+  const prefix = `https://github.com/${repo}/releases/download/`;
+  const url = asset.browser_download_url;
+  if (typeof url !== 'string' || !url.startsWith(prefix)) {
+    return err(`${repo}: ссылка ${JSON.stringify(url)} не начинается с ${prefix}`);
+  }
 
   const parsed = releaseSchema.safeParse({
     status: 'released',
     version,
-    url: asset.browser_download_url,
+    url,
     size: asset.size,
     publishedAt: body.published_at,
   });
@@ -47,12 +54,13 @@ export function mergeReleases(
   const releases: Releases = {};
   const warnings: string[] = [];
   for (const id of [...ids].sort()) {
-    const o = outcomes[id];
+    // hasOwn: id вроде `constructor` не должен находить унаследованные свойства объектов
+    const o = Object.hasOwn(outcomes, id) ? outcomes[id] : undefined;
     if (o?.kind === 'ok') {
       releases[id] = o.release;
       continue;
     }
-    const kept = snapshot[id];
+    const kept = Object.hasOwn(snapshot, id) ? snapshot[id] : undefined;
     releases[id] = kept ?? { status: 'soon' };
     warnings.push(
       `${id}: ${o?.kind === 'error' ? o.message : 'нет результата запроса'}; ${kept ? 'оставлен снимок' : 'soon'}`,
