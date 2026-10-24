@@ -6,13 +6,16 @@
 # поэтому повторная выкладка того же sha не оставляет current висячей.
 # Коды: 0 — готово; 2 — плохой sha; 3 — пустой stdin, а релиза нет; 4 — архив больше лимита, битый или небезопасный
 # (симлинки, хардлинки, устройства, fifo, sparse, абсолютные пути и «..»);
-# 5 — в сборке нет index.html, en/index.html или 404.html; 6 — другая выкладка уже идёт (занят замок).
+# 5 — в сборке нет index.html, en/index.html или 404.html; 6 — другая выкладка уже идёт (занят замок);
+# 7 — загрузка не завершилась за UTILS_UPLOAD_TIMEOUT секунд (по умолчанию 300): замок не держится вечно.
 set -euo pipefail
 
 ROOT=${UTILS_ROOT:-/srv/utils/site}
 MAX=${UTILS_MAX_BYTES:-52428800}
 # Лимит распакованного (сумма размеров файлов в архиве): сжатая «бомба» иначе забила бы общий с VPN диск.
 UNPACK_MAX=${UTILS_MAX_UNPACKED:-209715200}
+# Общий срок приёма архива: живой клиент мог бы держать stdin открытым, а с ним и замок, бесконечно.
+UPLOAD_TIMEOUT=${UTILS_UPLOAD_TIMEOUT:-300}
 KEEP=5
 SHA=${SSH_ORIGINAL_COMMAND:-${1:-}}
 
@@ -21,8 +24,19 @@ if [[ ! $SHA =~ ^[0-9a-f]{40}$ ]]; then
   exit 2
 fi
 
+if [[ ! $UPLOAD_TIMEOUT =~ ^[1-9][0-9]*$ ]]; then
+  echo "utils-receive: UTILS_UPLOAD_TIMEOUT должен быть целым числом секунд, получено: '$UPLOAD_TIMEOUT'" >&2
+  exit 2
+fi
+# python3 нужен и для приёма с таймаутом, и для проверки архива.
+if ! command -v python3 > /dev/null 2>&1; then
+  echo "utils-receive: нет python3 для приёма и проверки архива" >&2
+  exit 4
+fi
+
 RELEASES=$ROOT/releases
-mkdir -p "$RELEASES"
+# Права явно, а не от umask: nginx должен читать релизы.
+install -d -m 755 "$RELEASES"
 
 UPLOAD=""
 INCOMING=""
@@ -82,7 +96,47 @@ prune() {
   done < <(find "$RELEASES" -mindepth 1 -maxdepth 1 -type d ! -name '.*' | sed 's|.*/||' | sort -t. -k2,2r)
 }
 
-head -c $((MAX + 1)) > "$UPLOAD"
+# Приём через python3: общий срок UPLOAD_TIMEOUT и лимит сжатого размера MAX.
+# stdin (архив) передаётся в fd 3, потому что stdin python занят текстом скрипта.
+# Коды python: 0 — принят целиком; 7 — срок вышел; 8 — больше MAX.
+UPLOAD_RC=0
+python3 - "$UPLOAD" "$MAX" "$UPLOAD_TIMEOUT" 3<&0 << 'PY' || UPLOAD_RC=$?
+import os, select, sys, time
+
+path, cap, timeout = sys.argv[1], int(sys.argv[2]), float(sys.argv[3])
+deadline = time.monotonic() + timeout
+total = 0
+with open(path, 'wb') as out:
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            sys.exit(7)
+        ready, _, _ = select.select([3], [], [], left)
+        if not ready:
+            sys.exit(7)
+        chunk = os.read(3, 1 << 16)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > cap:
+            sys.exit(8)
+        out.write(chunk)
+PY
+case $UPLOAD_RC in
+  0) ;;
+  7)
+    echo "utils-receive: загрузка не завершилась за $UPLOAD_TIMEOUT с" >&2
+    exit 7
+    ;;
+  8)
+    echo "utils-receive: архив больше $MAX байт" >&2
+    exit 4
+    ;;
+  *)
+    echo "utils-receive: архив не принят (python3 вернул $UPLOAD_RC)" >&2
+    exit 4
+    ;;
+esac
 SIZE=$(wc -c < "$UPLOAD" | tr -d ' ')
 
 if ((SIZE == 0)); then
@@ -97,19 +151,10 @@ if ((SIZE == 0)); then
   exit 0
 fi
 
-if ((SIZE > MAX)); then
-  echo "utils-receive: архив больше $MAX байт" >&2
-  exit 4
-fi
-
 # Проверка архива ДО распаковки: только обычные файлы и каталоги, без абсолютных путей и «..»,
 # без release.txt (его пишет приёмник), не больше 20000 членов, сумма размеров не больше лимита.
 # Поток после gzip ограничен (лимит + 1 МиБ на заголовки tar) ещё до разбора: огромные PAX/GNU-метаданные
 # иначе выделились бы в памяти раньше проверок размера. Битый gzip/tar — тоже отказ.
-if ! command -v python3 > /dev/null 2>&1; then
-  echo "utils-receive: нет python3 для проверки архива" >&2
-  exit 4
-fi
 if ! python3 - "$UPLOAD" "$UNPACK_MAX" << 'PY'
 import gzip, sys, tarfile
 
@@ -181,7 +226,9 @@ for f in index.html en/index.html 404.html; do
 done
 
 printf '%s %s\n' "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$INCOMING/release.txt"
-chmod -R a+rX "$INCOMING"
+# nginx читает релиз: каталоги 755, файлы 644, независимо от umask и прав в архиве.
+find "$INCOMING" -type d -exec chmod 755 {} +
+find "$INCOMING" -type f -exec chmod 644 {} +
 NAME=$SHA.$(python3 -c 'import time; print("%020d" % time.time_ns())')-$$
 mv "$INCOMING" "$RELEASES/$NAME"
 INCOMING=""

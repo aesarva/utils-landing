@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
-  existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync,
+  existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -223,6 +223,57 @@ describe('utils-receive', () => {
     writeFileSync(join(root, '.current-dead'), 'x');
     expect(receive(A, archive('A')).status).toBe(0);
     expect(leftovers()).toEqual([]);
+  });
+
+  it('загрузка без конца (stdin не закрывается) — код 7 по таймауту, без остатков, замок свободен', async () => {
+    receive(A, archive('A'));
+    const before = current();
+    const child = spawn('bash', [SCRIPT, B], {
+      env: { ...process.env, UTILS_ROOT: root, UTILS_UPLOAD_TIMEOUT: '1' },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stderr = '';
+    child.stderr!.on('data', (d) => (stderr += d));
+    // Клиент жив и прислал начало, но stdin так и не закрывает.
+    child.stdin!.write(archive('B').subarray(0, 16));
+    const started = Date.now();
+    const code = await new Promise<number | null>((ok) => {
+      const timer = setTimeout(() => {
+        child.kill('SIGKILL');
+        ok(null);
+      }, 15_000);
+      child.on('exit', (c) => {
+        clearTimeout(timer);
+        ok(c);
+      });
+    });
+    child.stdin!.destroy();
+    expect(code).toBe(7);
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(stderr).toContain('загрузка не завершилась за 1 с');
+    expect(current()).toBe(before);
+    expect(releases()).toHaveLength(1);
+    expect(leftovers()).toEqual([]);
+    // Следующая выкладка не упирается в замок.
+    const next = receive(B, archive('B2'));
+    expect(next.status).toBe(0);
+    expect(served()).toBe('B2');
+  }, 30_000);
+
+  it('права: releases/ и релиз 755, файлы 644 даже при umask 077', () => {
+    const r = spawnSync('bash', ['-c', 'umask 077; exec bash "$0" "$1"', SCRIPT, A], {
+      input: archive('A'),
+      env: { ...process.env, UTILS_ROOT: root },
+    });
+    expect(r.status).toBe(0);
+    const mode = (p: string) => (statSync(p).mode & 0o777).toString(8);
+    const rel = join(root, current());
+    expect(mode(join(root, 'releases'))).toBe('755');
+    expect(mode(rel)).toBe('755');
+    expect(mode(join(rel, 'en'))).toBe('755');
+    expect(mode(join(rel, 'index.html'))).toBe('644');
+    expect(mode(join(rel, 'en/index.html'))).toBe('644');
+    expect(mode(join(rel, 'release.txt'))).toBe('644');
   });
 
   it('занятый замок — код 6, без изменений', async () => {
