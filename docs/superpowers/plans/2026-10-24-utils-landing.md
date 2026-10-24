@@ -64,7 +64,7 @@ src/
 src/assets/products/<id>/      картинки из репо продуктов
 scripts/
   load-products.ts             чтение YAML под tsx (для fetch-releases и validate)
-  fetch-releases.ts  validate.ts  sync-assets.ts  releases-changed.ts  smoke.sh
+  fetch-releases.ts  validate.ts  sync-assets.ts  releases-changed.ts  smoke.sh  deploy-check.sh
 server/
   bin/utils-receive  nginx/utils-http.conf  nginx/utils-https.conf  README.md
 tests/unit/*.test.ts  tests/unit/fixtures/  tests/e2e/*.spec.ts
