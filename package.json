@@ -11,6 +11,7 @@
     "dev": "astro dev",
     "build": "npm run fetch:releases && astro build",
     "build:offline": "RELEASES_OFFLINE=1 npm run build",
+    "sync:assets": "tsx scripts/sync-assets.ts",
     "fetch:releases": "tsx scripts/fetch-releases.ts",
     "preview": "astro preview",
     "check": "astro check",
