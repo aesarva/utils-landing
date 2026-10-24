@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { parse } from 'parse5';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { readProducts } from '../../scripts/load-products';
@@ -30,16 +31,28 @@ for (const { lang, id } of pages) {
       );
       expect(overflow).toBeLessThanOrEqual(0);
 
-      const broken = await page.evaluate(() =>
-        [...document.images].filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.src),
-      );
-      expect(broken).toEqual([]);
+      // Ленивые картинки: прокручиваем каждую в зону видимости и ждём загрузки.
+      const imgs = page.locator('img');
+      const count = await imgs.count();
+      if (id) expect(count).toBeGreaterThan(0);
+      for (let i = 0; i < count; i++) await imgs.nth(i).scrollIntoViewIfNeeded();
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() =>
+              [...document.images].filter((i) => !(i.complete && i.naturalWidth > 0)).map((i) => i.src),
+            ),
+          { timeout: 10_000 },
+        )
+        .toEqual([]);
 
       // Внутренние ссылки без дублей и #фрагментов.
       const hrefs = await page.$$eval('a[href^="/"]', (as) =>
         as.map((a) => a.getAttribute('href')!.split('#')[0]),
       );
-      for (const href of new Set(hrefs.filter(Boolean))) {
+      const unique = new Set(hrefs.filter(Boolean));
+      expect(unique.size).toBeGreaterThan(0);
+      for (const href of unique) {
         const r = await request.get(href);
         expect(r.status(), href).toBe(200);
       }
@@ -57,9 +70,10 @@ for (const { lang, id } of pages) {
         await page.goto(path);
         const rel = releases[id];
         if (rel.status === 'released') {
-          const link = page.locator(`a[href="${rel.url}"]`).first();
-          await expect(link).toBeVisible();
-          await expect(page.locator('body')).toContainText(rel.version);
+          const block = page.locator('[data-download]');
+          await expect(block).toHaveCount(1);
+          await expect(block.locator(`a[href="${rel.url}"]`)).toBeVisible();
+          await expect(block).toContainText(rel.version);
         } else {
           await expect(page.locator('a[href$=".dmg"]')).toHaveCount(0);
         }
@@ -92,8 +106,10 @@ test('в dist нет инлайновых <script> без src', async ({}, testI
     });
   const files = walk(join(ROOT, 'dist'));
   expect(files.length).toBeGreaterThan(0);
-  const offenders = files.filter((f) =>
-    [...readFileSync(f, 'utf8').matchAll(/<script\b[^>]*>/gi)].some((m) => !/\ssrc\s*=/.test(m[0])),
-  );
+  type Node = { nodeName: string; attrs?: { name: string; value: string }[]; childNodes?: Node[]; content?: Node };
+  const inline = (node: Node): boolean =>
+    (node.nodeName === 'script' && !node.attrs?.some((a) => a.name === 'src')) ||
+    [...(node.childNodes ?? []), ...(node.content ? [node.content] : [])].some(inline);
+  const offenders = files.filter((f) => inline(parse(readFileSync(f, 'utf8')) as unknown as Node));
   expect(offenders).toEqual([]);
 });

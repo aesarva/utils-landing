@@ -23,7 +23,7 @@ const icon = productIcon(product.id);
   <p>{product.tagline[lang]}</p>
   {
     r.status === 'released' ? (
-      <p class="dl">
+      <p class="dl" data-download>
         <a class="download" href={r.url}>{d.download}</a>
         <span>
           {r.version} · {formatSize(r.size, lang)} · {d.requires(product.requires.macos)}

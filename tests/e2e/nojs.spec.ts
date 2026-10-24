@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { readProducts } from '../../scripts/load-products';
+import { t } from '../../src/i18n';
 import { pagePath } from '../../src/lib/routes';
 
 const ROOT = process.cwd();
@@ -13,21 +14,23 @@ const releases: Record<string, { status: string; url?: string }> = JSON.parse(
 // Сайт должен работать без JavaScript.
 test.use({ javaScriptEnabled: false });
 
-test('хаб без JS: ссылки на все продукты', async ({ page }) => {
-  await page.goto('/');
-  for (const id of ids) {
-    await expect(page.locator(`main a[href="${pagePath('ru', id)}"]`).first()).toBeVisible();
-  }
-});
-
-for (const id of ids) {
-  test(`${id} без JS: кнопка скачивания или «Скоро»`, async ({ page }) => {
-    await page.goto(pagePath('ru', id));
-    const rel = releases[id];
-    if (rel.status === 'released') {
-      await expect(page.locator(`a[href="${rel.url}"]`).first()).toBeVisible();
-    } else {
-      await expect(page.getByText('Скоро').first()).toBeVisible();
+for (const lang of ['ru', 'en'] as const) {
+  test(`хаб (${lang}) без JS: ссылки на все продукты`, async ({ page }) => {
+    await page.goto(pagePath(lang));
+    for (const id of ids) {
+      await expect(page.locator(`main a[href="${pagePath(lang, id)}"]`).first()).toBeVisible();
     }
   });
+
+  for (const id of ids) {
+    test(`${id} (${lang}) без JS: кнопка скачивания или «Скоро»`, async ({ page }) => {
+      await page.goto(pagePath(lang, id));
+      const rel = releases[id];
+      if (rel.status === 'released') {
+        await expect(page.locator(`a[href="${rel.url}"]`).first()).toBeVisible();
+      } else {
+        await expect(page.getByText(t(lang).comingSoon).first()).toBeVisible();
+      }
+    });
+  }
 }
