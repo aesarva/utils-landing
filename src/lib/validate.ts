@@ -50,6 +50,41 @@ export function extractCss(file: string, text: string): string {
 
 const SHELL_VARS = ['--shell-ink', '--shell-ground', '--shell-accent', '--shell-font'];
 
+/** Селектор относится к миру `key`: содержит `[data-world="key"]` (кавычки любые или без них). */
+function scopedTo(selector: string, key: string): boolean {
+  return new RegExp(`\\[\\s*data-world\\s*=\\s*(["']?)${key}\\1\\s*\\]`).test(selector);
+}
+
+/**
+ * Объявления `--shell-*` в CSS (без комментариев) со стеком селекторов, внутри которых они стоят.
+ * Простой разбор по `{`, `}` и `;`: строки с фигурными скобками в CSS миров не ожидаются.
+ */
+function shellDeclarations(css: string): { name: string; selectors: string[] }[] {
+  const found: { name: string; selectors: string[] }[] = [];
+  const stack: string[] = [];
+  let buf = '';
+  const flush = () => {
+    const m = /^\s*(--shell-[\w-]+)\s*:/.exec(buf);
+    if (m) found.push({ name: m[1], selectors: [...stack] });
+    buf = '';
+  };
+  for (const ch of css) {
+    if (ch === '{') {
+      stack.push(buf.trim());
+      buf = '';
+    } else if (ch === '}') {
+      flush();
+      stack.pop();
+    } else if (ch === ';') {
+      flush();
+    } else {
+      buf += ch;
+    }
+  }
+  flush();
+  return found;
+}
+
 /** Плоский список путей ключей словаря: `a`, `nested.b`. */
 function flatKeys(value: unknown, prefix = ''): string[] {
   if (value === null || typeof value !== 'object') return [];
@@ -129,7 +164,8 @@ export function validateSite(input: SiteInput): string[] {
     if (!seenIds.has(id)) errors.push(`${registryPath}: лишний id «${id}»`);
   }
 
-  // Переменные оболочки: в каждом мире и в хабе.
+  // Переменные оболочки: в каждом мире и в хабе, только в правилах с [data-world="<id>"]
+  // (хаб — "hub"). Объявление вне такого правила протекло бы на страницы других миров.
   for (const key of [...ids, 'hub']) {
     const styles = Object.hasOwn(input.worldStyles, key) ? stripCssComments(input.worldStyles[key]) : undefined;
     if (styles === undefined) {
@@ -137,8 +173,15 @@ export function validateSite(input: SiteInput): string[] {
       if (key === 'hub') errors.push('src/worlds/hub: нет папки хаба');
       continue;
     }
+    const decls = shellDeclarations(styles);
+    const scope = `[data-world="${key}"]`;
     for (const name of SHELL_VARS) {
-      if (!new RegExp(`${name}\\s*:`).test(styles)) errors.push(`src/worlds/${key}: нет ${name}`);
+      const own = decls.filter((d) => d.name === name);
+      if (own.length === 0) {
+        errors.push(`src/worlds/${key}: нет ${name}`);
+      } else if (own.some((d) => !d.selectors.some((sel) => scopedTo(sel, key)))) {
+        errors.push(`src/worlds/${key}: ${name} объявлена вне правила с ${scope}`);
+      }
     }
   }
 

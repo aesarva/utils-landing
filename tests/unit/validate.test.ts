@@ -25,7 +25,9 @@ const released = (id: string) => ({
   publishedAt: '2026-01-01T00:00:00Z',
 });
 
-const styles = '--shell-ink: #000; --shell-ground: #fff; --shell-accent: #00f; --shell-font: serif;';
+const decls = '--shell-ink: #000; --shell-ground: #fff; --shell-accent: #00f; --shell-font: serif;';
+/** Переменные мира `key` в правиле с его data-world, как в настоящих мирах. */
+const css = (key: string) => `:root[data-world="${key}"] { ${decls} }`;
 
 /** Корректный вход: два продукта, миры, хаб, словари. */
 function base(): SiteInput {
@@ -34,7 +36,7 @@ function base(): SiteInput {
     releases: { aa: released('aa'), bb: { status: 'soon' } },
     registryIds: ['aa', 'bb'],
     worldDirs: ['aa', 'bb'],
-    worldStyles: { aa: styles, bb: styles, hub: styles },
+    worldStyles: { aa: css('aa'), bb: css('bb'), hub: css('hub') },
     assetExists: () => true,
     dicts: { ru: { a: 'x', nested: { b: 'y' } }, en: { a: 'x', nested: { b: 'y' } } },
   };
@@ -117,13 +119,13 @@ describe('validateSite', () => {
 
   it('мир без --shell-accent', () => {
     const input = base();
-    input.worldStyles.aa = styles.replace('--shell-accent: #00f;', '');
+    input.worldStyles.aa = css('aa').replace('--shell-accent: #00f;', '');
     expect(validateSite(input)).toContain('src/worlds/aa: нет --shell-accent');
   });
 
   it('хаб без --shell-font', () => {
     const input = base();
-    input.worldStyles.hub = styles.replace('--shell-font: serif;', '');
+    input.worldStyles.hub = css('hub').replace('--shell-font: serif;', '');
     expect(validateSite(input)).toContain('src/worlds/hub: нет --shell-font');
   });
 
@@ -147,7 +149,7 @@ describe('validateSite', () => {
     input.releases = {};
     input.registryIds = ['constructor'];
     input.worldDirs = ['constructor'];
-    input.worldStyles = { hub: styles };
+    input.worldStyles = { hub: css('hub') };
     const errors = validateSite(input);
     expect(has(errors, 'нет записи для «constructor»')).toBe(true);
     expect(errors.some((e) => e.includes('--shell-'))).toBe(false); // из прототипа стили не берутся, и ничего не падает
@@ -155,13 +157,13 @@ describe('validateSite', () => {
 
   it('закомментированная переменная не считается', () => {
     const input = base();
-    input.worldStyles.aa = '/* --shell-ink: #000; */ ' + styles.replace('--shell-ink: #000;', '');
+    input.worldStyles.aa = '/* --shell-ink: #000; */ ' + css('aa').replace('--shell-ink: #000;', '');
     expect(validateSite(input)).toContain('src/worlds/aa: нет --shell-ink');
   });
 
   it('пробел перед двоеточием допустим', () => {
     const input = base();
-    input.worldStyles.aa = styles.replace('--shell-ink:', '--shell-ink :');
+    input.worldStyles.aa = css('aa').replace('--shell-ink:', '--shell-ink :');
     expect(validateSite(input)).toEqual([]);
   });
 
@@ -175,10 +177,47 @@ describe('validateSite', () => {
   });
 });
 
+describe('переменные оболочки только под data-world', () => {
+  it('переменные в голом :root — ошибка для каждой', () => {
+    const input = base();
+    input.worldStyles.aa = `:root { ${decls} }`;
+    const errors = validateSite(input);
+    for (const name of ['ink', 'ground', 'accent', 'font']) {
+      expect(errors).toContain(`src/worlds/aa: --shell-${name} объявлена вне правила с [data-world="aa"]`);
+    }
+  });
+
+  it('правило с data-world другого мира не засчитывается', () => {
+    const input = base();
+    input.worldStyles.aa = css('bb');
+    expect(validateSite(input)).toContain('src/worlds/aa: --shell-accent объявлена вне правила с [data-world="aa"]');
+  });
+
+  it('утечка: правильное правило плюс голый :root с той же переменной — ошибка', () => {
+    const input = base();
+    input.worldStyles.aa = css('aa') + ' :root { --shell-accent: red; }';
+    expect(validateSite(input)).toEqual(['src/worlds/aa: --shell-accent объявлена вне правила с [data-world="aa"]']);
+  });
+
+  it('хаб в :root[data-world="aa"] не засчитывается: у хаба ключ "hub"', () => {
+    const input = base();
+    input.worldStyles.hub = css('aa');
+    expect(validateSite(input)).toContain('src/worlds/hub: --shell-ink объявлена вне правила с [data-world="hub"]');
+  });
+
+  it('другие записи селектора и вложенность в @media допустимы', () => {
+    const input = base();
+    input.worldStyles.aa =
+      `html[data-world='aa'] { ${decls} } ` +
+      '@media (prefers-color-scheme: dark) { html[data-world=aa] body, :root[data-world="aa"] { --shell-ink: #fff; } }';
+    expect(validateSite(input)).toEqual([]);
+  });
+});
+
 describe('CSS мира', () => {
   it('url("//…") перед объявлениями не скрывает их', () => {
     const input = base();
-    input.worldStyles.aa = 'a { background-image: url("//cdn.example.com/bg.png"); } ' + styles;
+    input.worldStyles.aa = 'a { background-image: url("//cdn.example.com/bg.png"); } ' + css('aa');
     expect(validateSite(input)).toEqual([]);
   });
 
@@ -192,7 +231,7 @@ describe('CSS мира', () => {
 describe('закомментированный style', () => {
   it('блок style внутри HTML-комментария не считается', () => {
     const input = base();
-    input.worldStyles.aa = extractCss('World.astro', `<!-- <style>${styles}</style> -->`);
+    input.worldStyles.aa = extractCss('World.astro', `<!-- <style>${css('aa')}</style> -->`);
     const errors = validateSite(input);
     for (const name of ['ink', 'ground', 'accent', 'font']) {
       expect(errors).toContain(`src/worlds/aa: нет --shell-${name}`);

@@ -10,6 +10,8 @@ export const ru = {
   langLabel: 'English',
   langName: 'Русский',
   footerOrg: 'CyberTech team',
+  footerGithub: 'GitHub',
+  license: 'Лицензия',
   notFoundTitle: 'Страница не найдена',
   notFoundBody: 'Такой страницы нет. Вернитесь к списку утилит.',
   hubTitle: 'Утилиты CyberTech для macOS',

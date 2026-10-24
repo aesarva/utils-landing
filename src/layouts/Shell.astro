@@ -1,6 +1,8 @@
 ---
 // Оболочка страницы: head, верхняя панель, подвал. Своих цветов и шрифтов нет:
 // только var(--shell-*), которые задаёт мир на странице.
+// <html data-world="<id>|hub">: CSS всех миров может оказаться в бандле страницы (реестр импортирует
+// все миры), поэтому каждый мир объявляет переменные и глобальные стили только под своим data-world.
 import type { Lang } from '../lib/schema';
 import { alternates, pagePath } from '../lib/routes';
 import { INDEXABLE, SITE } from '../lib/site';
@@ -20,10 +22,12 @@ interface Props {
 }
 const { lang, title, description, productId, isHub = false, notFound = false, favicon } = Astro.props;
 const canonical = `${SITE}${pagePath(lang, productId)}`;
+// Хаб и 404 — мир хаба.
+const world = productId ?? 'hub';
 ---
 
 <!doctype html>
-<html lang={lang}>
+<html lang={lang} data-world={world}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

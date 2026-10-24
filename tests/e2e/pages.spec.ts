@@ -12,7 +12,23 @@ type Release = { status: 'released'; version: string; url: string } | { status: 
 const releases: Record<string, Release> = JSON.parse(
   readFileSync(join(ROOT, 'src/data/releases.json'), 'utf8'),
 );
-const ids = readProducts(ROOT).map((p) => (p.data as { id: string }).id);
+const products = readProducts(ROOT).map((p) => p.data as { id: string; license: string });
+const ids = products.map((p) => p.id);
+
+/** Значение --shell-accent, объявленное миром `key` в правиле с его [data-world] (исходники мира). */
+function declaredAccent(key: string): string {
+  const dir = join(ROOT, 'src/worlds', key);
+  const text = readdirSync(dir, { recursive: true, encoding: 'utf8' })
+    .filter((f) => /\.(astro|css)$/.test(f))
+    .map((f) => readFileSync(join(dir, f), 'utf8'))
+    .join('\n');
+  const m = new RegExp(`\\[data-world=["']?${key}["']?\\][^{]*\\{[^}]*--shell-accent\\s*:\\s*([^;}]+)`).exec(text);
+  if (!m) throw new Error(`src/worlds/${key}: не найден --shell-accent под [data-world="${key}"]`);
+  return m[1].trim();
+}
+
+const accentOnPage = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--shell-accent').trim());
 
 const pages = (['ru', 'en'] as const).flatMap((lang) => [
   { lang, id: undefined as string | undefined },
@@ -26,6 +42,8 @@ for (const { lang, id } of pages) {
       const res = await page.goto(path);
       expect(res?.status()).toBe(200);
 
+      // Ширину меряем после загрузки шрифтов: подмена шрифта может её изменить.
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
@@ -56,6 +74,20 @@ for (const { lang, id } of pages) {
         const r = await request.get(href);
         expect(r.status(), href).toBe(200);
       }
+    });
+
+    test('ровно один h1, мир страницы и его акцент, подвал с годом и GitHub', async ({ page }) => {
+      await page.goto(path);
+      await expect(page.locator('h1')).toHaveCount(1);
+      const world = id ?? 'hub';
+      await expect(page.locator('html')).toHaveAttribute('data-world', world);
+      // Стили всех миров могут быть в бандле: значение должно быть именно этого мира.
+      expect(await accentOnPage(page)).toBe(declaredAccent(world));
+      const footer = page.locator('footer');
+      await expect(footer.locator('a[href="https://github.com/aesarva"]')).toHaveCount(1);
+      await expect(footer).toContainText('CyberTech team');
+      await expect(footer.locator('[data-year]')).toHaveText(String(new Date().getUTCFullYear()));
+      if (id) await expect(page.locator('main')).toContainText(products.find((p) => p.id === id)!.license);
     });
 
     test('переключатель языка ведёт на другую версию', async ({ page }) => {
@@ -92,8 +124,18 @@ for (const { lang, id } of pages) {
 test('/no-such-page/ — 404, текст на обоих языках', async ({ page }) => {
   const res = await page.goto('/no-such-page/');
   expect(res?.status()).toBe(404);
+  await expect(page.locator('h1')).toHaveCount(1);
+  await expect(page.locator('html')).toHaveAttribute('data-world', 'hub');
+  expect(await accentOnPage(page)).toBe(declaredAccent('hub'));
   await expect(page.getByRole('heading', { name: 'Страница не найдена' })).toBeVisible();
   await expect(page.locator('[lang="en"]').getByRole('heading', { name: 'Page not found' })).toBeVisible();
+});
+
+// Заглушки нарочно с разными акцентами: иначе проверка акцента выше не отличила бы утечку стилей.
+test('у хаба и каждого мира свой --shell-accent', async ({}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'проверка по исходникам, один раз');
+  const accents = ['hub', ...ids].map(declaredAccent);
+  expect(new Set(accents).size).toBe(accents.length);
 });
 
 // CSP `script-src 'self'`: инлайновых скриптов в сборке быть не должно.

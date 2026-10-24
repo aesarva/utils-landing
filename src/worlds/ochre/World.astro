@@ -1,5 +1,6 @@
 ---
-// Мир-заглушка продукта: нейтральные значения оболочки, название, слоган, скачивание.
+// Мир-заглушка продукта: значения оболочки под data-world, название, слоган, скачивание, лицензия.
+// Акцент у каждой заглушки свой: e2e проверяет, что стили миров не протекают на чужие страницы.
 import type { Lang } from '../../lib/schema';
 import type { ProductView } from '../../lib/products';
 import { formatSize } from '../../lib/products';
@@ -33,14 +34,15 @@ const icon = productIcon(product);
       <p class="soon">{d.comingSoon}</p>
     )
   }
+  <p>{d.license}: {product.license}</p>
   <p><a href={`https://github.com/${product.repo}`}>{d.source}</a></p>
 </section>
 
 <style is:global>
-  :root {
+  :root[data-world="ochre"] {
     --shell-ink: #1c1c1e;
     --shell-ground: #f5f5f7;
-    --shell-accent: #0a5bd8;
+    --shell-accent: #8a5a00;
     --shell-font: system-ui, sans-serif;
   }
 </style>

@@ -16,12 +16,14 @@ describe('миры со статусом soon', () => {
     for (const lang of ['ru', 'en'] as const) {
       it(`${id} (${lang}): нет ссылки на dmg, есть «скоро»`, async () => {
         const container = await AstroContainer.create();
-        const html = await container.renderToString(World, {
+        // Тип мира — свой контракт (WorldComponent); контейнеру нужен его тип компонента.
+        const html = await container.renderToString(World as Parameters<typeof container.renderToString>[0], {
           props: { lang, product: { ...base, id, release: { status: 'soon' } } },
         });
         expect(html).not.toMatch(/\.dmg/i);
         expect(html).not.toContain('data-download');
         expect(html).toContain(t(lang).comingSoon);
+        expect(html).toContain(base.license);
       });
     }
   }

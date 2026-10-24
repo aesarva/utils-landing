@@ -12,6 +12,8 @@ export const en: Dict = {
   langLabel: 'Русский',
   langName: 'English',
   footerOrg: 'CyberTech team',
+  footerGithub: 'GitHub',
+  license: 'License',
   notFoundTitle: 'Page not found',
   notFoundBody: 'There is no such page. Go back to the list of utilities.',
   hubTitle: 'CyberTech utilities for macOS',
