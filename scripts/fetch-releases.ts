@@ -1,24 +1,39 @@
 // Обновляет src/data/releases.json из GitHub API. Всегда выходит с кодом 0:
 // при любой ошибке остаётся снимок, сборка не должна падать из-за GitHub.
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+// RELEASES_OFFLINE=1: запросов нет, но снимок всё равно сводится к списку продуктов —
+// новый продукт без записи получает soon, и офлайн-сборка проходит валидатор.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mergeReleases, parseLatestRelease, serializeReleases, type FetchOutcome } from '../src/lib/releases';
-import { productSchema } from '../src/lib/schema';
+import { productSchema, type Releases } from '../src/lib/schema';
 import { readProducts } from './load-products';
 import { readSnapshot } from './read-snapshot';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const file = join(root, 'src/data/releases.json');
+export interface RunOptions {
+  /** Корень проекта: из него читаются продукты и пишется src/data/releases.json. */
+  root: string;
+  offline: boolean;
+  /** Подменяется в тестах; по умолчанию глобальный fetch. */
+  fetchImpl?: typeof fetch;
+  token?: string;
+  /** Куда печатать предупреждения и сообщения; по умолчанию stderr/stdout. */
+  warn?: (line: string) => void;
+  log?: (line: string) => void;
+}
 
-async function fetchOutcome(product: { repo: string; dmg: string }): Promise<FetchOutcome> {
+async function fetchOutcome(
+  product: { repo: string; dmg: string },
+  fetchImpl: typeof fetch,
+  token: string | undefined,
+): Promise<FetchOutcome> {
   try {
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github+json',
       'User-Agent': 'utils-landing',
     };
-    if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-    const res = await fetch(`https://api.github.com/repos/${product.repo}/releases/latest`, {
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetchImpl(`https://api.github.com/repos/${product.repo}/releases/latest`, {
       headers,
       signal: AbortSignal.timeout(10_000),
     });
@@ -29,30 +44,57 @@ async function fetchOutcome(product: { repo: string; dmg: string }): Promise<Fet
   }
 }
 
-async function main(): Promise<void> {
+/** Один прогон: читает снимок и продукты, сводит релизы, пишет файл только при изменении. */
+export async function run(opts: RunOptions): Promise<{ written: boolean; warnings: string[] }> {
+  const warn = opts.warn ?? ((line: string) => console.error(`предупреждение: ${line}`));
+  const log = opts.log ?? ((line: string) => console.log(line));
+  const file = join(opts.root, 'src/data/releases.json');
+
   const { releases: snapshot, warning } = readSnapshot(file);
-  if (warning) console.error(`предупреждение: ${warning}`);
-  if (process.env.RELEASES_OFFLINE === '1') {
-    if (!warning) console.log('RELEASES_OFFLINE=1: запросы пропущены, снимок читается');
-    return;
+  const warnings: string[] = warning ? [warning] : [];
+  const products = readProducts(opts.root).map((p) => productSchema.parse(p.data));
+  const ids = products.map((p) => p.id);
+
+  let releases: Releases;
+  if (opts.offline) {
+    log('RELEASES_OFFLINE=1: запросы пропущены, снимок сводится к списку продуктов');
+    ({ releases } = mergeReleases(ids, snapshot, {}));
+    for (const id of ids) {
+      if (!Object.hasOwn(snapshot, id)) warnings.push(`офлайн: «${id}» нет в снимке, записан soon`);
+    }
+  } else {
+    const fetchImpl = opts.fetchImpl ?? fetch;
+    const outcomes: Record<string, FetchOutcome> = {};
+    await Promise.all(
+      products.map(async (p) => {
+        outcomes[p.id] = await fetchOutcome(p, fetchImpl, opts.token);
+      }),
+    );
+    const merged = mergeReleases(ids, snapshot, outcomes);
+    releases = merged.releases;
+    warnings.push(...merged.warnings);
   }
-  const products = readProducts(root).map((p) => productSchema.parse(p.data));
-  const outcomes: Record<string, FetchOutcome> = {};
-  await Promise.all(
-    products.map(async (p) => {
-      outcomes[p.id] = await fetchOutcome(p);
-    }),
-  );
-  const { releases, warnings } = mergeReleases(
-    products.map((p) => p.id),
-    snapshot,
-    outcomes,
-  );
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, serializeReleases(releases));
-  for (const w of warnings) console.error(`предупреждение: ${w}`);
+
+  // Файл переписывается, только если содержимое изменилось: офлайн-сборка не трогает git-дерево зря.
+  const text = serializeReleases(releases);
+  const before = existsSync(file) ? readFileSync(file, 'utf8') : undefined;
+  const written = before !== text;
+  if (written) {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, text);
+  }
+  for (const w of warnings) warn(w);
+  return { written, warnings };
 }
 
-main().catch((e) => {
-  console.error(`предупреждение: ${e instanceof Error ? e.message : String(e)}`);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // Корень можно передать аргументом (как у validate.ts): `tsx scripts/fetch-releases.ts [корень]`.
+  const root = process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..');
+  await run({
+    root,
+    offline: process.env.RELEASES_OFFLINE === '1',
+    token: process.env.GITHUB_TOKEN,
+  }).catch((e: unknown) => {
+    console.error(`предупреждение: ${e instanceof Error ? e.message : String(e)}`);
+  });
+}
