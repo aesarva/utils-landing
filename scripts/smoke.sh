@@ -43,18 +43,24 @@ for id in ${ids[@]+"${ids[@]}"}; do
   expect_status "/$id/" 200
   expect_status "/en/$id/" 200
 done
+expect_status /releases.json 200
+expect_status /robots.txt 200
 expect_status /no-such-page/ 404
 
 case "$base" in
   https://*)
-    rc=0
-    headers="$("${CURL[@]}" -o /dev/null -D - "$base/ochre")" || rc=$?
-    code="$(printf '%s' "$headers" | head -n1 | tr -d '\r' | awk '{print $2}')"
-    loc="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
-    if [ "$rc" -eq 0 ] && [ "$code" = "301" ] && [ "$loc" = "/ochre/" ]; then
-      ok "/ochre -> 301 Location: /ochre/"
-    else
-      fail "/ochre -> $code Location: ${loc:-нет}, curl rc=$rc (ждали 301 и /ochre/ без :8443)"
+    # Адрес без слэша — на первом продукте из записей, а не на захардкоженном id.
+    if [ "${#ids[@]}" -gt 0 ]; then
+      first="${ids[0]}"
+      rc=0
+      headers="$("${CURL[@]}" -o /dev/null -D - "$base/$first")" || rc=$?
+      code="$(printf '%s' "$headers" | head -n1 | tr -d '\r' | awk '{print $2}')"
+      loc="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
+      if [ "$rc" -eq 0 ] && [ "$code" = "301" ] && [ "$loc" = "/$first/" ]; then
+        ok "/$first -> 301 Location: /$first/"
+      else
+        fail "/$first -> $code Location: ${loc:-нет}, curl rc=$rc (ждали 301 и /$first/ без :8443)"
+      fi
     fi
 
     # Обычная проверка curl без -k: rc=0 значит, что цепочка валидна и имя хоста совпало с сертификатом.

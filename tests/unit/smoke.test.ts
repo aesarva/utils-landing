@@ -42,13 +42,29 @@ const run = (url: string, root: string) => exec('bash', [smoke, url, root]);
 describe('smoke.sh', () => {
   it('здоровый сайт → код 0, id с кавычками и комментарием читается', async () => {
     const url = await serve((req, res) => {
-      const ok = ['/', '/en/', '/a/', '/en/a/'].includes(req.url ?? '');
+      const ok = ['/', '/en/', '/a/', '/en/a/', '/releases.json', '/robots.txt'].includes(req.url ?? '');
       res.writeHead(ok ? 200 : 404).end('x');
     });
     const r = await run(url, fakeRoot('id: "a"  # комментарий\nname: A\n'));
     expect(r.stdout).toContain('ok   /en/a/ -> 200');
+    expect(r.stdout).toContain('ok   /releases.json -> 200');
+    expect(r.stdout).toContain('ok   /robots.txt -> 200');
     expect(r.status).toBe(0);
   });
+
+  for (const missing of ['/releases.json', '/robots.txt']) {
+    it(`нет ${missing} → код 1`, async () => {
+      const url = await serve((req, res) => {
+        const ok = ['/', '/en/', '/a/', '/en/a/', '/releases.json', '/robots.txt']
+          .filter((p) => p !== missing)
+          .includes(req.url ?? '');
+        res.writeHead(ok ? 200 : 404).end('x');
+      });
+      const r = await run(url, fakeRoot('id: a\n'));
+      expect(r.stdout).toContain(`FAIL ${missing} -> 404`);
+      expect(r.status).toBe(1);
+    });
+  }
 
   it('обрыв соединения посреди тела при статусе 200 → код 1', async () => {
     const url = await serve((req, res) => {
