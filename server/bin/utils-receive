@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Приёмник релизов utils-landing. Вызывается ключом CI: ssh utils-deploy@сервер <sha> < сборка.tar.gz
+# (authorized_keys: restrict,command="/usr/local/bin/utils-receive").
+# Пустой stdin — откат: current переключается на уже лежащий релиз <sha>.
+# Коды: 0 — готово; 2 — плохой sha; 3 — пустой stdin, а релиза нет; 4 — архив (сжатый или распакованный) больше лимита или битый;
+# 5 — в сборке нет index.html, en/index.html или 404.html.
+set -euo pipefail
+
+ROOT=${UTILS_ROOT:-/srv/utils/site}
+MAX=${UTILS_MAX_BYTES:-52428800}
+# Лимит распакованного: сжатая «бомба» в 50 МБ иначе забила бы общий с VPN диск.
+UNPACK_MAX=${UTILS_MAX_UNPACKED:-209715200}
+KEEP=5
+SHA=${SSH_ORIGINAL_COMMAND:-${1:-}}
+
+if [[ ! $SHA =~ ^[0-9a-f]{40}$ ]]; then
+  echo "utils-receive: нужен sha коммита (40 hex), получено: '$SHA'" >&2
+  exit 2
+fi
+
+RELEASES=$ROOT/releases
+mkdir -p "$RELEASES"
+UPLOAD=$(mktemp "$ROOT/.upload-XXXXXX")
+UNPACKED=$UPLOAD.tar
+INCOMING=$RELEASES/.incoming-$SHA
+trap 'rm -rf "$UPLOAD" "$UNPACKED" "$INCOMING"' EXIT
+
+switch_current() {
+  ln -sfn "releases/$SHA" "$ROOT/current.tmp"
+  # GNU mv -T подменяет ссылку атомарно; там, где его нет (macOS в тестах), — ln -sfn.
+  if ! mv -Tf "$ROOT/current.tmp" "$ROOT/current" 2>/dev/null; then
+    rm -f "$ROOT/current.tmp"
+    ln -sfn "releases/$SHA" "$ROOT/current"
+  fi
+}
+
+prune() {
+  local current n=0 d
+  current=$(basename "$(readlink "$ROOT/current")")
+  # ls без -a не видит .incoming-* и .old-*; свежие — первыми.
+  # shellcheck disable=SC2045  # имена — только sha (hex), пробелов нет
+  for d in $(ls -1t "$RELEASES"); do
+    [[ $d == "$current" ]] && continue
+    n=$((n + 1))
+    ((n < KEEP)) && continue
+    rm -rf "${RELEASES:?}/$d"
+  done
+}
+
+head -c $((MAX + 1)) > "$UPLOAD"
+SIZE=$(wc -c < "$UPLOAD" | tr -d ' ')
+
+if ((SIZE == 0)); then
+  if [[ ! -d $RELEASES/$SHA ]]; then
+    echo "utils-receive: архива нет, и релиза $SHA на сервере нет" >&2
+    exit 3
+  fi
+  switch_current
+  echo "utils-receive: current → $SHA (откат)"
+  exit 0
+fi
+
+if ((SIZE > MAX)); then
+  echo "utils-receive: архив больше $MAX байт" >&2
+  exit 4
+fi
+
+# gzip распаковывается с отсечкой: больше лимита — отказ; сбой gzip (битый архив) — тоже отказ.
+# Код gzip 2 — предупреждение (нули после потока, их дописывает bsdtar), не ошибка.
+set +eo pipefail
+gzip -dc "$UPLOAD" 2>/dev/null | head -c $((UNPACK_MAX + 1)) > "$UNPACKED"
+gunzip_status=${PIPESTATUS[0]}
+set -eo pipefail
+gunzip_ok=$((gunzip_status == 0 || gunzip_status == 2))
+if (($(wc -c < "$UNPACKED") > UNPACK_MAX)); then
+  echo "utils-receive: распакованная сборка больше $UNPACK_MAX байт" >&2
+  exit 4
+fi
+rm -rf "$INCOMING"
+mkdir -p "$INCOMING"
+if ((gunzip_ok == 0)) || ! tar -xf "$UNPACKED" -C "$INCOMING" 2>/dev/null; then
+  echo "utils-receive: архив не распаковался" >&2
+  exit 4
+fi
+rm -f "$UNPACKED"
+if [[ ! -f $INCOMING/index.html || ! -f $INCOMING/en/index.html || ! -f $INCOMING/404.html ]]; then
+  echo "utils-receive: в сборке нет index.html, en/index.html или 404.html" >&2
+  exit 5
+fi
+
+printf '%s %s\n' "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$INCOMING/release.txt"
+chmod -R a+rX "$INCOMING"
+if [[ -d $RELEASES/$SHA ]]; then
+  rm -rf "$RELEASES/.old-$SHA"
+  mv "$RELEASES/$SHA" "$RELEASES/.old-$SHA"
+fi
+mv "$INCOMING" "$RELEASES/$SHA"
+rm -rf "$RELEASES/.old-$SHA"
+switch_current
+prune
+echo "utils-receive: current → $SHA"
