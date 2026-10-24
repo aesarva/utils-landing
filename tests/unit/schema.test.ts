@@ -37,6 +37,12 @@ describe('productSchema', () => {
     expect(productSchema.safeParse({ ...valid, id }).success).toBe(false);
   });
 
+  it.each(['en', 'hub', 'fonts'])('отвергает зарезервированный id %j с понятным сообщением', (id) => {
+    const r = productSchema.safeParse({ ...valid, id });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0].message).toContain('зарезервирован');
+  });
+
   it('отвергает tagline без en', () => {
     expect(productSchema.safeParse({ ...valid, tagline: { ru: 'Текст' } }).success).toBe(false);
   });

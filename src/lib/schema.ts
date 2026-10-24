@@ -8,9 +8,21 @@ export type Lang = (typeof LANGS)[number];
 /** Текст на обоих языках: пустая строка и отсутствие языка запрещены. */
 export const localizedSchema = z.object({ ru: z.string().min(1), en: z.string().min(1) });
 
+/**
+ * Имена, которые нельзя брать в id: `/en/` — английский хаб, `hub` — ключ мира хаба
+ * (src/worlds/hub, data-world="hub"), `/fonts/` — общая папка шрифтов.
+ */
+export const RESERVED_IDS = ['en', 'hub', 'fonts'] as const;
+
 export const productSchema = z.object({
   /** kebab-case: идёт в URL `/<id>/` */
-  id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
+  id: z
+    .string()
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+    .refine((id) => !(RESERVED_IDS as readonly string[]).includes(id), {
+      error: (issue) =>
+        `id «${String(issue.input)}» зарезервирован (${RESERVED_IDS.join(', ')}): занят маршрутом или служебной папкой`,
+    }),
   name: z.string().min(1),
   order: z.number().int().min(1),
   /** `владелец/репозиторий` на GitHub */

@@ -55,6 +55,12 @@ describe('validateSite', () => {
     expect(has(errors, 'repo')).toBe(true);
   });
 
+  it('зарезервированный id (en) отвергается по-русски с путём файла', () => {
+    const input = base();
+    input.products[0] = product('en', 1);
+    expect(has(validateSite(input), 'src/content/products/en.yaml: id: id «en» зарезервирован')).toBe(true);
+  });
+
   it('id не совпадает с именем файла', () => {
     const input = base();
     input.products[0] = { ...product('aa', 1), path: 'src/content/products/zz.yaml' };
