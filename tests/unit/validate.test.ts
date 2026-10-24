@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateSite, type SiteInput } from '../../src/lib/validate';
+import { registryIds, validateSite, type SiteInput } from '../../src/lib/validate';
 
 const product = (id: string, order: number, over: Record<string, unknown> = {}) => ({
   path: `src/content/products/${id}.yaml`,
@@ -133,5 +133,55 @@ describe('validateSite', () => {
     const errors = validateSite(input);
     expect(has(errors, 'nested.b')).toBe(true);
     expect(has(errors, 'nested.c')).toBe(true);
+  });
+
+  it('унаследованные свойства не считаются записями (id constructor)', () => {
+    const input = base();
+    input.products = [product('constructor', 1)];
+    input.releases = {};
+    input.registryIds = ['constructor'];
+    input.worldDirs = ['constructor'];
+    input.worldStyles = { hub: styles };
+    const errors = validateSite(input);
+    expect(has(errors, 'нет записи для «constructor»')).toBe(true);
+    expect(errors.some((e) => e.includes('--shell-'))).toBe(false); // из прототипа стили не берутся, и ничего не падает
+  });
+
+  it('закомментированная переменная не считается', () => {
+    const input = base();
+    input.worldStyles.aa = '/* --shell-ink: #000; */ <!-- --shell-ink: #111 --> ' + styles.replace('--shell-ink: #000;', '');
+    expect(validateSite(input)).toContain('src/worlds/aa: нет --shell-ink');
+  });
+
+  it('пробел перед двоеточием допустим', () => {
+    const input = base();
+    input.worldStyles.aa = styles.replace('--shell-ink:', '--shell-ink :');
+    expect(validateSite(input)).toEqual([]);
+  });
+
+  it('ошибки схем по-русски', () => {
+    const input = base();
+    input.products[0] = product('aa', 1, { repo: 'плохо' });
+    input.releases = { aa: { status: 'released' }, bb: { status: 'soon' } };
+    const errors = validateSite(input);
+    expect(errors.some((e) => e.startsWith('src/content/products/aa.yaml: repo: ') && e.includes('Неверная строка'))).toBe(true);
+    expect(errors.some((e) => e.startsWith('src/data/releases.json: aa.version: ') && /[А-Яа-я]/.test(e))).toBe(true);
+  });
+});
+
+describe('registryIds', () => {
+  it('разбирает кавычки, комментарии, короткую запись и запятую в конце', () => {
+    const source = `export const worlds: Record<string, X> = {
+  // первый мир
+  ochre,
+  'my-tool': MyTool, /* заметка */
+  "other-tool": Other,
+  subus: subus,
+};`;
+    expect(registryIds(source)).toEqual(['ochre', 'my-tool', 'other-tool', 'subus']);
+  });
+
+  it('однострочный реестр', () => {
+    expect(registryIds('export const worlds = { ochre, lidless }')).toEqual(['ochre', 'lidless']);
   });
 });
