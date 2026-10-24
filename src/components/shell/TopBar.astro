@@ -8,13 +8,14 @@ interface Props {
   lang: Lang;
   productId?: string;
   isHub: boolean;
+  notFound?: boolean;
 }
-const { lang, productId, isHub } = Astro.props;
+const { lang, productId, isHub, notFound = false } = Astro.props;
 ---
 
 <header class="topbar">
   {!isHub && <HubLink lang={lang} />}
-  <LangSwitch lang={lang} productId={productId} />
+  {!notFound && <LangSwitch lang={lang} productId={productId} />}
 </header>
 
 <style>

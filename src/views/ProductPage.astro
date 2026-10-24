@@ -12,8 +12,8 @@ interface Props {
 const { lang, productId } = Astro.props;
 const product = (await loadProducts()).find((p) => p.id === productId);
 if (!product) throw new Error(`нет продукта ${productId}`);
+if (!Object.hasOwn(worlds, productId)) throw new Error(`нет мира для продукта ${productId}`);
 const World = worlds[productId];
-if (!World) throw new Error(`нет мира для продукта ${productId}`);
 ---
 
 <Shell lang={lang} title={`${product.name} — ${product.tagline[lang]}`} description={product.tagline[lang]} productId={productId}>

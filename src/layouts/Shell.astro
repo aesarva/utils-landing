@@ -13,8 +13,10 @@ interface Props {
   description: string;
   productId?: string;
   isHub?: boolean;
+  /** Страница ошибки: без canonical и alternates, всегда noindex. */
+  notFound?: boolean;
 }
-const { lang, title, description, productId, isHub = false } = Astro.props;
+const { lang, title, description, productId, isHub = false, notFound = false } = Astro.props;
 const canonical = `${SITE}${pagePath(lang, productId)}`;
 ---
 
@@ -25,13 +27,13 @@ const canonical = `${SITE}${pagePath(lang, productId)}`;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
-    {alternates(productId).map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
-    {!INDEXABLE && <meta name="robots" content="noindex" />}
+    {!notFound && <link rel="canonical" href={canonical} />}
+    {!notFound && alternates(productId).map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+    {(!INDEXABLE || notFound) && <meta name="robots" content="noindex" />}
     <slot name="head" />
   </head>
   <body>
-    <TopBar lang={lang} productId={productId} isHub={isHub} />
+    <TopBar lang={lang} productId={productId} isHub={isHub} notFound={notFound} />
     <main>
       <slot />
     </main>

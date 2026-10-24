@@ -19,7 +19,7 @@ const r = product.release;
   <p>{product.tagline[lang]}</p>
   {
     r.status === 'released' ? (
-      <p>
+      <p class="dl">
         <a class="download" href={r.url}>{d.download}</a>
         <span>
           {r.version} · {formatSize(r.size, lang)} · {d.requires(product.requires.macos)}
@@ -42,6 +42,12 @@ const r = product.release;
 </style>
 
 <style>
+  .dl {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 1rem;
+  }
   .world {
     max-width: 40rem;
     margin: 0 auto;
