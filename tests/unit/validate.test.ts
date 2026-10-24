@@ -183,6 +183,17 @@ describe('CSS мира', () => {
   });
 });
 
+describe('закомментированный style', () => {
+  it('блок style внутри HTML-комментария не считается', () => {
+    const input = base();
+    input.worldStyles.aa = extractCss('World.astro', `<!-- <style>${styles}</style> -->`);
+    const errors = validateSite(input);
+    for (const name of ['ink', 'ground', 'accent', 'font']) {
+      expect(errors).toContain(`src/worlds/aa: нет --shell-${name}`);
+    }
+  });
+});
+
 describe('registryIds', () => {
   it('комментарий сразу после двоеточия', () => {
     expect(registryIds('export const worlds = { ochre:// first, second\n Ochre,\n subus }')).toEqual(['ochre', 'subus']);

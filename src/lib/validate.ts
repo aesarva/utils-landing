@@ -44,7 +44,8 @@ function stripCssComments(text: string): string {
 /** CSS из файла мира: содержимое блоков `<style>` в .astro, .css целиком. */
 export function extractCss(file: string, text: string): string {
   if (file.endsWith('.css')) return text;
-  return [...text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
+  const html = text.replace(/<!--[\s\S]*?-->/g, '');
+  return [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
 }
 
 const SHELL_VARS = ['--shell-ink', '--shell-ground', '--shell-accent', '--shell-font'];
