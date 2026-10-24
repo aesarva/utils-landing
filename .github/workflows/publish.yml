@@ -1,0 +1,133 @@
+# Публикация лендинга: push в develop, ручной запуск и ежечасное обновление данных о релизах
+# выкладываются на https://utils.cyber-tech.online. Сервер принимает архив только командой utils-receive.
+# Секреты: UTILS_DEPLOY_KEY — приватный ключ utils-deploy; UTILS_KNOWN_HOSTS — строка ssh-keyscan сервера.
+name: publish
+
+on:
+  push:
+    branches: [develop]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+# Токену GitHub — только чтение. Ключ выкладки попадает лишь в задачу deploy, где не запускаются
+# ни npm, ни зависимости проекта: сборка (npm ci, тесты, build) идёт в отдельной задаче и передаёт dist артефактом.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      changed: ${{ steps.releases.outputs.changed }}
+      sha: ${{ steps.rev.outputs.sha }}
+    steps:
+      # Расписание запускается на ветке по умолчанию, поэтому develop берём явно.
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          persist-credentials: false
+
+      - id: rev
+        name: Запомнить коммит сборки
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      # e2e (Playwright) в CI не запускается: браузеров на раннере нет, их прогоняют локально перед слиянием.
+      - run: npm test
+
+      # GITHUB_TOKEN нужен fetch-releases (API GitHub, лимит выше, чем без токена).
+      - run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # Только по расписанию: если живой releases.json совпал со свежим, выкладывать нечего.
+      # Не удалось получить живой файл — считаем, что изменилось.
+      - id: releases
+        name: Сравнить releases.json с опубликованным
+        if: github.event_name == 'schedule'
+        run: npx tsx scripts/releases-changed.ts dist/releases.json https://utils.cyber-tech.online/releases.json
+
+      - name: Упаковать сборку
+        run: tar -C dist -czf site.tar.gz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site.tar.gz
+          retention-days: 1
+
+  deploy:
+    needs: build
+    if: github.event_name != 'schedule' || needs.build.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SERVER: utils-deploy@185.36.144.150
+      SITE: https://utils.cyber-tech.online
+      SHA: ${{ needs.build.outputs.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+
+      # Из репозитория нужен только смоук и список продуктов; npm здесь не запускается.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.sha }}
+          path: repo
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/smoke.sh
+            src/content/products
+
+      - name: Выложить сборку
+        env:
+          DEPLOY_KEY: ${{ secrets.UTILS_DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.UTILS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # Код 6 — приёмник занят другой выкладкой: до 3 попыток с паузой 20 с. Остальные ненулевые коды — сразу сбой.
+          for attempt in 1 2 3; do
+            rc=0
+            ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes "$SERVER" "$SHA" < site.tar.gz || rc=$?
+            if [ "$rc" -ne 6 ]; then break; fi
+            echo "Приёмник занят (попытка $attempt из 3)" >&2
+            if [ "$attempt" -lt 3 ]; then sleep 20; fi
+          done
+          rm -f ~/.ssh/deploy
+          exit "$rc"
+
+      # Живой releases.json сравнивается с артефактным после нормализации jq -S (порядок ключей и пробелы не важны).
+      - name: Проверить, что сайт отдаёт этот коммит и свежие релизы
+        run: |
+          mkdir built
+          tar -xzf site.tar.gz -C built
+          jq -S . built/releases.json > built.json
+          for _attempt in 1 2 3 4 5 6; do
+            if curl -fsS "$SITE/release.txt" | grep -q "^$SHA " \
+              && curl -fsS "$SITE/releases.json" | jq -S . > live.json \
+              && cmp -s built.json live.json; then
+              echo "Опубликовано: $SHA"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Сайт не отдаёт коммит $SHA и собранный releases.json" >&2
+          exit 1
+
+      - name: Смоук
+        run: bash repo/scripts/smoke.sh "$SITE" repo
