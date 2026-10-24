@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { sourceDirs, syncProduct } from '../../scripts/sync-assets';
+import { productIds, resolveIds, sourceDirs, syncProduct } from '../../scripts/sync-assets';
 
 describe('sourceDirs', () => {
   it('ochre: docs/images и site/img', () => {
@@ -11,6 +11,33 @@ describe('sourceDirs', () => {
   });
   it('subus: только docs/images', () => {
     expect(sourceDirs('subus', '/p')).toEqual({ repo: '/p/subus', dirs: ['docs/images'] });
+  });
+});
+
+describe('список продуктов из записей', () => {
+  it('productIds читает id из src/content/products, включая новый продукт', () => {
+    const root = mkdtempSync(join(tmpdir(), 'sync-ids-'));
+    try {
+      const dir = join(root, 'src/content/products');
+      mkdirSync(dir, { recursive: true });
+      for (const f of ['ochre', 'lidless', 'subus']) {
+        writeFileSync(join(dir, `${f}.yaml`), readFileSync(join(process.cwd(), 'src/content/products', `${f}.yaml`)));
+      }
+      const foo = readFileSync(join(dir, 'subus.yaml'), 'utf8').replace(/^id: .*$/m, 'id: foo').replace(/^order: .*$/m, 'order: 4');
+      writeFileSync(join(dir, 'foo.yaml'), foo);
+      expect(productIds(root)).toEqual(['foo', 'lidless', 'ochre', 'subus']);
+      writeFileSync(join(dir, 'bad.yaml'), 'id: Плохой\n');
+      expect(() => productIds(root)).toThrow(/bad\.yaml: запись продукта не по схеме/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('resolveIds: без аргументов — все, названный новый продукт принимается, незнакомый — ошибка', () => {
+    const known = ['foo', 'ochre'];
+    expect(resolveIds([], known)).toEqual(known);
+    expect(resolveIds(['foo'], known)).toEqual(['foo']);
+    expect(() => resolveIds(['bar'], known)).toThrow(/неизвестный продукт: bar/);
   });
 });
 
@@ -66,6 +93,13 @@ describe('syncProduct (временный git-репозиторий)', () => {
     expect(readdirSync(join(dest, 'ochre')).sort()).toEqual(['icon.png', 'tab-cpu.jpg', 'tab-disk.jpg', 'иконка "q".png']);
     expect(readFileSync(join(dest, 'ochre/icon.png'))).toEqual(Buffer.from([0x89, 0x50, 0x00, 0xff, 0x0a, 0x0d]));
     expect(readFileSync(join(dest, 'ochre/tab-cpu.jpg'), 'utf8')).toBe('docs-version');
+  });
+
+  it('продукт не из старого жёсткого списка синхронизируется', () => {
+    execFileSync('mv', [join(root, 'ochre'), join(root, 'foo')]);
+    const res = syncProduct('foo', { projectsRoot: root, ref: 'develop', destRoot: dest });
+    expect(res.copied).toBe(3);
+    expect(readdirSync(join(dest, 'foo')).sort()).toEqual(['icon.png', 'tab-cpu.jpg', 'иконка "q".png']);
   });
 
   it('недопустимый id бросает и ничего не трогает', () => {

@@ -4,8 +4,10 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { productSchema } from '../src/lib/schema';
+import { readProducts } from './load-products';
 
-export const PRODUCTS = ['ochre', 'lidless', 'subus'];
+const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 /** Папка репо, если она не совпадает с id продукта. */
 const REPO_DIR: Record<string, string> = {};
 /** Дополнительные папки с картинками (после docs/images). */
@@ -45,7 +47,8 @@ export interface SyncResult {
 }
 
 export function syncProduct(id: string, opts: { projectsRoot: string; ref: string; destRoot: string }): SyncResult {
-  if (!PRODUCTS.includes(id) || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) throw new Error(`неизвестный продукт: ${id}`);
+  // Охрана пути: id идёт в имя папки, поэтому только kebab-case (ни «..», ни «/»).
+  if (!ID_RE.test(id)) throw new Error(`недопустимый id продукта: ${id}`);
   checkRef(opts.ref);
   const { repo, dirs } = sourceDirs(id, opts.projectsRoot);
   const chosen = new Map<string, string>();
@@ -71,6 +74,23 @@ export function syncProduct(id: string, opts: { projectsRoot: string; ref: strin
   return { copied: chosen.size, removed, skipped };
 }
 
+/** id продуктов из записей `src/content/products/*.yaml` проекта `root`; запись не по схеме — ошибка. */
+export function productIds(root: string): string[] {
+  return readProducts(root).map(({ path, data }) => {
+    const parsed = productSchema.safeParse(data);
+    if (!parsed.success) throw new Error(`${path}: запись продукта не по схеме, сначала исправьте её (tsx scripts/validate.ts)`);
+    return parsed.data.id;
+  });
+}
+
+/** Какие продукты синхронизировать: названные (каждый должен быть среди известных) или все. */
+export function resolveIds(requested: string[], known: string[]): string[] {
+  for (const id of requested) {
+    if (!known.includes(id)) throw new Error(`неизвестный продукт: ${id} (нет записи src/content/products/${id}.yaml)`);
+  }
+  return requested.length ? requested : known;
+}
+
 function checkRef(ref: string): void {
   if (!ref || ref.startsWith('-')) throw new Error(`недопустимый ref: "${ref}"`);
 }
@@ -88,8 +108,7 @@ function main(argv: string[]): void {
   const here = dirname(fileURLToPath(import.meta.url));
   const projectsRoot = resolve(here, '../..');
   const destRoot = resolve(here, '../src/assets/products');
-  for (const id of ids) if (!PRODUCTS.includes(id)) throw new Error(`неизвестный продукт: ${id}`);
-  for (const id of ids.length ? ids : PRODUCTS) {
+  for (const id of resolveIds(ids, productIds(resolve(here, '..')))) {
     const r = syncProduct(id, { projectsRoot, ref, destRoot });
     console.log(`${id} (${ref}): скопировано ${r.copied}, удалено ${r.removed.length}`);
     for (const f of r.removed) console.log(`  удалён ${f}`);

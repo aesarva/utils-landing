@@ -17,17 +17,26 @@ const valid = {
 describe('productSchema', () => {
   const products = readProducts(process.cwd());
 
-  it('читает три записи продуктов', () => {
-    expect(products).toHaveLength(3);
+  it('есть хотя бы одна запись продукта', () => {
+    expect(products.length).toBeGreaterThanOrEqual(1);
   });
 
-  for (const id of ['ochre', 'lidless', 'subus']) {
-    it(`принимает запись ${id}`, () => {
-      const entry = products.find((p) => p.path.endsWith(`/${id}.yaml`));
-      expect(entry).toBeDefined();
-      expect(productSchema.safeParse(entry?.data).success).toBe(true);
+  // Сколько бы продуктов ни было: каждая запись проходит схему (новый продукт не ломает тест).
+  for (const entry of products) {
+    it(`принимает запись ${entry.path.split('/').pop()}`, () => {
+      expect(productSchema.safeParse(entry.data).success).toBe(true);
     });
   }
+
+  // Точечные проверки фактов из Global Constraints: лицензии продуктов.
+  it.each([
+    ['ochre', 'MIT'],
+    ['lidless', 'GPL-3.0'],
+    ['subus', 'GPL-3.0'],
+  ])('%s: лицензия %s', (id, license) => {
+    const entry = products.find((p) => p.path.endsWith(`/${id}.yaml`));
+    expect((entry?.data as { license?: string } | undefined)?.license).toBe(license);
+  });
 
   it('принимает эталонную запись', () => {
     expect(productSchema.safeParse(valid).success).toBe(true);
