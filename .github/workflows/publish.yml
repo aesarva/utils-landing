@@ -27,10 +27,13 @@ jobs:
       changed: ${{ steps.releases.outputs.changed }}
       sha: ${{ steps.rev.outputs.sha }}
     steps:
-      # Расписание запускается на ветке по умолчанию, поэтому develop берём явно.
+      # push и ручной запуск собирают ровно github.sha (для ручного — голову выбранной ветки), а не подвижный develop:
+      # иначе запуск для коммита A мог бы собрать и выложить B, а перезапуск — самый свежий коммит.
+      # Расписание идёт на ветке по умолчанию, поэтому берёт голову develop: оно выкладывает её текущее
+      # состояние со свежими данными о релизах.
       - uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: ${{ github.event_name == 'schedule' && 'develop' || github.sha }}
           persist-credentials: false
 
       - id: rev
@@ -88,7 +91,7 @@ jobs:
           path: repo
           persist-credentials: false
           sparse-checkout: |
-            scripts/smoke.sh
+            scripts
             src/content/products
 
       - name: Выложить сборку
@@ -118,8 +121,8 @@ jobs:
           tar -xzf site.tar.gz -C built
           jq -S . built/releases.json > built.json
           for _attempt in 1 2 3 4 5 6; do
-            if curl -fsS "$SITE/release.txt" | grep -q "^$SHA " \
-              && curl -fsS "$SITE/releases.json" | jq -S . > live.json \
+            if curl -fsS --connect-timeout 10 --max-time 20 "$SITE/release.txt" | grep -q "^$SHA " \
+              && curl -fsS --connect-timeout 10 --max-time 20 "$SITE/releases.json" | jq -S . > live.json \
               && cmp -s built.json live.json; then
               echo "Опубликовано: $SHA"
               exit 0

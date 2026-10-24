@@ -16,19 +16,23 @@ failed=0
 ok() { printf 'ok   %s\n' "$1"; }
 fail() { printf 'FAIL %s\n' "$1"; failed=1; }
 
-# Код ответа без следования редиректам; 000, если соединиться не удалось.
-status() { curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$base$1" || true; }
+# Все запросы с таймаутами; сбой передачи (обрыв тела, таймаут) — это провал, даже если статус успел прийти.
+CURL=(curl -s --connect-timeout 10 --max-time 30)
 
 expect_status() {
-  local path="$1" want="$2" got
-  got="$(status "$path")"
-  if [ "$got" = "$want" ]; then ok "$path -> $want"; else fail "$path -> $got (ждали $want)"; fi
+  local path="$1" want="$2" got rc=0
+  got="$("${CURL[@]}" -o /dev/null -w '%{http_code}' "$base$path")" || rc=$?
+  if [ "$rc" -eq 0 ] && [ "$got" = "$want" ]; then
+    ok "$path -> $want"
+  else
+    fail "$path -> ${got:-нет ответа}, curl rc=$rc (ждали $want и rc=0)"
+  fi
 }
 
 ids=()
 for f in "$root"/src/content/products/*.yaml; do
   [ -e "$f" ] || continue
-  id="$(grep -m1 '^id:' "$f" | sed -e 's/^id:[[:space:]]*//' -e "s/[\"']//g" -e 's/[[:space:]]*$//')"
+  id="$(grep -m1 '^id:' "$f" | sed -e 's/^id:[[:space:]]*//' -e 's/[[:space:]]#.*$//' -e "s/[\"']//g" -e 's/[[:space:]]*$//')"
   [ -n "$id" ] && ids+=("$id")
 done
 if [ "${#ids[@]}" -eq 0 ]; then fail "в $root/src/content/products нет ни одного id"; fi
@@ -43,20 +47,24 @@ expect_status /no-such-page/ 404
 
 case "$base" in
   https://*)
-    headers="$(curl -s -o /dev/null -D - --max-time 20 "$base/ochre" || true)"
+    rc=0
+    headers="$("${CURL[@]}" -o /dev/null -D - "$base/ochre")" || rc=$?
     code="$(printf '%s' "$headers" | head -n1 | tr -d '\r' | awk '{print $2}')"
     loc="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
-    if [ "$code" = "301" ] && [ "$loc" = "/ochre/" ]; then
+    if [ "$rc" -eq 0 ] && [ "$code" = "301" ] && [ "$loc" = "/ochre/" ]; then
       ok "/ochre -> 301 Location: /ochre/"
     else
-      fail "/ochre -> $code Location: ${loc:-нет} (ждали 301 и /ochre/ без :8443)"
+      fail "/ochre -> $code Location: ${loc:-нет}, curl rc=$rc (ждали 301 и /ochre/ без :8443)"
     fi
 
-    cert="$(curl -sv -o /dev/null --max-time 20 "$base/" 2>&1 | grep -iE '^\*[[:space:]]+(subject|subjectAltName):' || true)"
-    if printf '%s\n' "$cert" | grep -qF "$host"; then
-      ok "сертификат содержит $host"
+    # Обычная проверка curl без -k: rc=0 значит, что цепочка валидна и имя хоста совпало с сертификатом.
+    rc=0
+    verbose="$("${CURL[@]}" -v -o /dev/null "$base/" 2>&1)" || rc=$?
+    info="$(printf '%s\n' "$verbose" | grep -iE '^\*[[:space:]]+(subject|subjectAltName):' || true)"
+    if [ "$rc" -eq 0 ]; then
+      ok "сертификат принят для $host${info:+ ($(printf '%s' "$info" | tr -s ' *\n' ' '))}"
     else
-      fail "сертификат не содержит $host: ${cert:-нет данных}"
+      fail "сертификат не принят для $host: curl rc=$rc ${info}"
     fi
     ;;
   *)
