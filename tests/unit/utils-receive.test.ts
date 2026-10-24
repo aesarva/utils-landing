@@ -43,7 +43,7 @@ function archive(label: string, opts: { notFound?: boolean; en?: boolean; extra?
   return spawnSync('tar', ['-czf', '-', '-C', dir, '.']).stdout;
 }
 
-type Member = { name: string; kind: 'file' | 'dir' | 'sym' | 'hard' | 'fifo' | 'chr' | 'sparse'; link?: string; size?: number };
+type Member = { name: string; kind: 'file' | 'dir' | 'sym' | 'hard' | 'fifo' | 'chr' | 'sparse' | 'pax' | 'many'; link?: string; size?: number };
 
 /** Архив с точными типами членов (Python tarfile): обычная сборка плюс переданные члены. */
 function crafted(members: Member[]): Buffer {
@@ -57,6 +57,12 @@ with tarfile.open(fileobj=buf, mode='w:gz') as tf:
     for m in spec:
         ti = tarfile.TarInfo(m['name'])
         k = m['kind']
+        if k == 'many':
+            for i in range(m['size']):
+                d = tarfile.TarInfo('d/%d' % i); d.type = tarfile.DIRTYPE; tf.addfile(d)
+            continue
+        if k == 'pax':
+            ti.pax_headers = {'comment': 'x' * (8 << 20)}; ti.size = 1; tf.addfile(ti, io.BytesIO(b'0')); continue
         if k == 'file':
             ti.size = m.get('size', 1); tf.addfile(ti, io.BytesIO(b'\\0' * ti.size)); continue
         ti.type = {'dir': tarfile.DIRTYPE, 'sym': tarfile.SYMTYPE, 'hard': tarfile.LNKTYPE,
@@ -144,6 +150,10 @@ describe('utils-receive', () => {
       ['fifo', [{ name: 'ff', kind: 'fifo' }]],
       ['устройство', [{ name: 'dev', kind: 'chr' }]],
       ['sparse-член', [{ name: 'sp', kind: 'sparse' }]],
+      ['огромные PAX-метаданные', [{ name: 'px', kind: 'pax' }]],
+      ['слишком много членов', [{ name: 'm', kind: 'many', size: 20001 }]],
+      ['каталог release.txt', [{ name: 'release.txt', kind: 'dir' }]],
+      ['файл ./release.txt', [{ name: './release.txt', kind: 'file' }]],
       ['логический размер больше лимита', [{ name: 'big', kind: 'file', size: 2 * 1024 * 1024 }]],
     ];
     for (const [what, members] of cases) {
@@ -158,6 +168,8 @@ describe('utils-receive', () => {
         const before = current();
         const r = receive(B, crafted(fixed), { UTILS_MAX_UNPACKED: String(1024 * 1024) });
         expect(r.status).toBe(4);
+        // Отказ должен дать именно проверка до распаковки, а не случайный сбой tar.
+        expect(String(r.stderr)).toContain('отклонён');
         expect(current()).toBe(before);
         expect(served()).toBe('A');
         expect(releases()).toHaveLength(1);
@@ -203,13 +215,22 @@ describe('utils-receive', () => {
     expect(releases()).toHaveLength(5);
   });
 
+  it('после замка чистит остатки убитого запуска', () => {
+    mkdirSync(join(root, '.incoming-dead'));
+    writeFileSync(join(root, '.incoming-dead/x'), 'x');
+    writeFileSync(join(root, '.upload-dead'), 'x');
+    writeFileSync(join(root, '.current-dead'), 'x');
+    expect(receive(A, archive('A')).status).toBe(0);
+    expect(leftovers()).toEqual([]);
+  });
+
   it('занятый замок — код 6, без изменений', async () => {
     receive(A, archive('A'));
     const before = current();
     const hasFlock = spawnSync('sh', ['-c', 'command -v flock']).status === 0;
     let holder: ReturnType<typeof spawn> | undefined;
     if (hasFlock) {
-      holder = spawn('bash', ['-c', 'exec 9>"$1"; flock 9; echo held; sleep 30', 'x', join(root, '.lock')]);
+      holder = spawn('bash', ['-c', 'exec 9>"$1"; flock 9; echo held; exec sleep 30', 'x', join(root, '.lock')]);
       await new Promise<void>((ok) => holder!.stdout!.once('data', () => ok()));
     } else {
       mkdirSync(join(root, '.lock.d'));

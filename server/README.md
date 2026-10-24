@@ -70,11 +70,12 @@ ssh-keygen -t ed25519 -N '' -C utils-deploy-ci -f /tmp/utils-deploy-key
 ```
 
 Публичную часть — в `authorized_keys` одной строкой. Файл и каталог `.ssh` принадлежат root (группа
-`utils-deploy` только читает), поэтому приёмник, запущенный от `utils-deploy`, не может их переписать:
+`utils-deploy` только читает; домашний каталог тоже `root:utils-deploy 750`, иначе владелец переименовал бы `.ssh`), поэтому приёмник, запущенный от `utils-deploy`, не может их переписать:
 
 ```sh
 PUB=$(cat /tmp/utils-deploy-key.pub)
 ssh -i ~/.ssh/serverspace root@185.36.144.150 "
+  chown root:utils-deploy /home/utils-deploy && chmod 750 /home/utils-deploy &&
   install -o root -g utils-deploy -m 750 -d /home/utils-deploy/.ssh &&
   echo 'restrict,command=\"/usr/local/bin/utils-receive\" $PUB' > /home/utils-deploy/.ssh/authorized_keys &&
   chown root:utils-deploy /home/utils-deploy/.ssh/authorized_keys && chmod 640 /home/utils-deploy/.ssh/authorized_keys"
@@ -126,4 +127,4 @@ ssh -i /путь/к/ключу-ci utils-deploy@185.36.144.150 <sha> < /dev/null
 
 0 — готово; 2 — плохой sha; 3 — откат на отсутствующий релиз; 4 — архив больше лимита (50 МБ сжатого,
 200 МБ суммарного размера файлов), битый или небезопасный (симлинки, хардлинки, устройства, fifo, sparse,
-абсолютные пути, `..`); 5 — в сборке нет `index.html`, `en/index.html` или `404.html`; 6 — идёт другая выкладка (занят замок `/srv/utils/site/.lock`), повторить позже.
+абсолютные пути, `..`, член `release.txt`, больше 20000 членов, раздутые PAX-метаданные); 5 — в сборке нет `index.html`, `en/index.html` или `404.html`; 6 — идёт другая выкладка (занят замок `/srv/utils/site/.lock`), повторить позже.
