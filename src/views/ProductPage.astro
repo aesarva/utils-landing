@@ -17,7 +17,7 @@ if (!product) throw new Error(`нет продукта ${productId}`);
 if (!Object.hasOwn(worlds, productId)) throw new Error(`нет мира для продукта ${productId}`);
 const World = worlds[productId];
 // Favicon страницы продукта: его иконка 64×64.
-const favicon = (await getImage({ src: productIcon(productId), width: 64, height: 64, format: 'png' })).src;
+const favicon = (await getImage({ src: productIcon(product), width: 64, height: 64, format: 'png' })).src;
 ---
 
 <Shell lang={lang} title={`${product.name} — ${product.tagline[lang]}`} description={product.tagline[lang]} productId={productId} favicon={favicon}>

@@ -14,7 +14,7 @@ interface Props {
 const { lang, product } = Astro.props;
 const d = t(lang);
 const r = product.release;
-const icon = productIcon(product.id);
+const icon = productIcon(product);
 ---
 
 <section class="world">
