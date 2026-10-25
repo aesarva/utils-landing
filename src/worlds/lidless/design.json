@@ -1,0 +1,630 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T22:35:24.000Z",
+  "title": "Design System: Lidless (product world)",
+  "scope": "src/worlds/lidless; tokens under :root[data-world='lidless'] only; shell contract in root DESIGN.md",
+  "extensions": {
+    "colorMeta": {
+      "on-air": {
+        "role": "primary",
+        "displayName": "On-Air Red",
+        "tonalRamp": [
+          "#2d0706",
+          "#590f0d",
+          "#861613",
+          "#bb1f1b",
+          "#e23b36",
+          "#eb7370",
+          "#f4b0af",
+          "#fbe5e4"
+        ]
+      },
+      "night": {
+        "role": "neutral",
+        "displayName": "Night Wall",
+        "tonalRamp": [
+          "#221411",
+          "#442922",
+          "#663d33",
+          "#8f5647",
+          "#b27566",
+          "#c99d92",
+          "#e0c8c2",
+          "#f5edeb"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Warm Off-White",
+        "tonalRamp": [
+          "#231b10",
+          "#47361f",
+          "#6a512f",
+          "#957141",
+          "#b99360",
+          "#cdb28e",
+          "#e3d4bf",
+          "#f6f1ea"
+        ]
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Dim Ink",
+        "tonalRamp": [
+          "#1c1917",
+          "#39332d",
+          "#554c44",
+          "#776a60",
+          "#998c80",
+          "#b6ada5",
+          "#d6d1cc",
+          "#f1f0ee"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Faint Ink",
+        "tonalRamp": [
+          "#1b1918",
+          "#363230",
+          "#524c47",
+          "#726a64",
+          "#948b84",
+          "#b3aca8",
+          "#d4d1ce",
+          "#f1f0ef"
+        ]
+      },
+      "byline": {
+        "role": "neutral",
+        "displayName": "Byline Grey",
+        "tonalRamp": [
+          "#1a1a19",
+          "#333333",
+          "#4d4d4c",
+          "#6c6c6b",
+          "#8d8d8c",
+          "#aeaead",
+          "#d1d1d1",
+          "#f0f0f0"
+        ]
+      },
+      "sign-letter": {
+        "role": "secondary",
+        "displayName": "Sign Letter",
+        "tonalRamp": [
+          "#2d2006",
+          "#593f0d",
+          "#865f13",
+          "#bb851b",
+          "#e2a836",
+          "#ebc170",
+          "#f4dcaf",
+          "#fbf3e4"
+        ]
+      },
+      "sign-letter-off": {
+        "role": "secondary",
+        "displayName": "Sign Letter Off",
+        "tonalRamp": [
+          "#24110f",
+          "#49221d",
+          "#6d332c",
+          "#99473d",
+          "#bd665b",
+          "#d0928a",
+          "#e5c2bd",
+          "#f6ebe9"
+        ]
+      },
+      "meter-stop": {
+        "role": "tertiary",
+        "displayName": "Meter Stop",
+        "tonalRamp": [
+          "#2d1606",
+          "#592d0d",
+          "#864313",
+          "#bb5e1b",
+          "#e27f36",
+          "#eba470",
+          "#f4ccaf",
+          "#fbeee4"
+        ]
+      },
+      "tape-ink": {
+        "role": "secondary",
+        "displayName": "Tape Ink",
+        "tonalRamp": [
+          "#24170f",
+          "#482e1e",
+          "#6c452d",
+          "#97613f",
+          "#bc815d",
+          "#cfa58c",
+          "#e4cdbe",
+          "#f6eee9"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "#251e0e",
+          "#4a3c1c",
+          "#6f5a2a",
+          "#9c7f3a",
+          "#c0a158",
+          "#d2bc88",
+          "#e6d9bc",
+          "#f7f2e9"
+        ]
+      },
+      "paper-ink": {
+        "role": "neutral",
+        "displayName": "Paper Ink",
+        "tonalRamp": [
+          "#1a1919",
+          "#343232",
+          "#4e4b4b",
+          "#6e6868",
+          "#8f8989",
+          "#afabab",
+          "#d2d0d0",
+          "#f0efef"
+        ]
+      },
+      "paper-dim": {
+        "role": "neutral",
+        "displayName": "Paper Dim",
+        "tonalRamp": [
+          "#1a1a19",
+          "#353331",
+          "#4f4d4a",
+          "#6f6c68",
+          "#908d88",
+          "#b0aeab",
+          "#d3d1d0",
+          "#f0f0ef"
+        ]
+      },
+      "paper-mid": {
+        "role": "neutral",
+        "displayName": "Paper Mid",
+        "tonalRamp": [
+          "#1b1a18",
+          "#363330",
+          "#514d48",
+          "#716c65",
+          "#938d86",
+          "#b2aea9",
+          "#d4d1cf",
+          "#f1f0ef"
+        ]
+      },
+      "paper-card-top": {
+        "role": "neutral",
+        "displayName": "Paper Card (top)",
+        "tonalRamp": [
+          "#1e1b15",
+          "#3c362a",
+          "#5b513e",
+          "#7f7257",
+          "#a19377",
+          "#bcb29e",
+          "#dad4c9",
+          "#f3f1ed"
+        ]
+      },
+      "paper-card-bottom": {
+        "role": "neutral",
+        "displayName": "Paper Card (bottom)",
+        "tonalRamp": [
+          "#1d1a16",
+          "#3a352c",
+          "#574f42",
+          "#7a6f5c",
+          "#9d917c",
+          "#b9b1a2",
+          "#d8d3cb",
+          "#f2f0ee"
+        ]
+      },
+      "paper-rule": {
+        "role": "neutral",
+        "displayName": "Paper Rule",
+        "tonalRamp": [
+          "#1d1b16",
+          "#3a352c",
+          "#575042",
+          "#7a705c",
+          "#9c917d",
+          "#b9b1a2",
+          "#d7d3cb",
+          "#f2f0ee"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "LIDLESS, the page h1. 48px on mobile."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Tagline. 34px/38px on mobile."
+      },
+      "section-title": {
+        "displayName": "Section title",
+        "purpose": "h2 on paper and night; 53u for Safe by design."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "Hero sentence, wdth 78%."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Section leads, wdth 86%; safe body 380 at 92% in paper-dim."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Page default and recovery table."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Install meta, wdth 90%; captions 17u/24u at 86%."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Session keys; active 650, infinity 24u; closed-lid key 19u."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Download label."
+      },
+      "sign-word": {
+        "displayName": "Sign word",
+        "purpose": "ON AIR; ru «В ЭФИРЕ» at 124u +0.01em; 60px on mobile."
+      },
+      "sign-time": {
+        "displayName": "Sign time",
+        "purpose": "Countdown; ru 96u; 46px on mobile. Sofia also sets step numerals."
+      },
+      "tape-hand": {
+        "displayName": "Tape hand",
+        "purpose": "Caption on the masking tape only."
+      }
+    },
+    "widthAxis": {
+      "lede": "78%",
+      "lang-switch": "80%",
+      "lead/captions/safe-line/recover-lead": "86%",
+      "steps/small": "90%",
+      "safety-line/safe-body": "92%",
+      "headings": "100%"
+    },
+    "signGeometry": {
+      "en": {
+        "word": {
+          "left": "calc(84 * var(--u))",
+          "top": "calc(75 * var(--u))",
+          "size": "calc(142 * var(--u))"
+        },
+        "time": {
+          "left": "calc(454 * var(--u))",
+          "top": "calc(87 * var(--u))",
+          "size": "calc(104 * var(--u))"
+        },
+        "divider": "calc(421 * var(--u))"
+      },
+      "ru": {
+        "word": {
+          "left": "calc(54 * var(--u))",
+          "top": "calc(82 * var(--u))",
+          "size": "calc(124 * var(--u))"
+        },
+        "time": {
+          "left": "calc(482 * var(--u))",
+          "top": "calc(92 * var(--u))",
+          "size": "calc(96 * var(--u))"
+        },
+        "divider": "calc(457 * var(--u))"
+      },
+      "mobile": "flow layout, word 60px, time 46px with an 18px border-left divider, no absolute divider"
+    },
+    "heroCoordinates": {
+      "height": "calc(795 * var(--u))",
+      "name": [
+        "calc(133 * var(--u))",
+        "calc(83 * var(--u))"
+      ],
+      "headline": [
+        "calc(137 * var(--u))",
+        "calc(247 * var(--u))",
+        "w calc(600 * var(--u))"
+      ],
+      "lede": [
+        "calc(138 * var(--u))",
+        "calc(368 * var(--u))",
+        "w calc(612 * var(--u))"
+      ],
+      "meters": [
+        "calc(190 * var(--u))",
+        "calc(437 * var(--u))",
+        "battery calc(262 * var(--u)), heat calc(282 * var(--u))"
+      ],
+      "console": [
+        "calc(762 * var(--u))",
+        "calc(72 * var(--u))",
+        "w calc(690 * var(--u))"
+      ],
+      "consoleAxisShift": "calc(-8 * var(--u))",
+      "tape": [
+        "center x calc(748 * var(--u))",
+        "calc(713 * var(--u))"
+      ]
+    },
+    "mobileHero": "one flow (name, headline, lede, console, meters, tape); studio plate 760px wide anchored bottom, translate -47%, mask-image linear-gradient(transparent, #000 40%); night overlay 55% to 10%",
+    "materials": {
+      "plates": {
+        "studio": "assets/plates/lidless-studio.png: studio wall, desk, closed laptop with cable (gpt-image from the comp crop, cropped y 98-893, upscaled 1.5x); also the 22% wall behind In the app",
+        "sign": "assets/plates/lidless-sign.png: housing and lit textured red glass, no lettering",
+        "meters": "assets/plates/lidless-meter-battery.png (stop line 20%), lidless-meter-heat.png (stop line 75%): riveted meters with LED segments",
+        "tape": "assets/plates/lidless-tape.png: torn masking tape, no writing",
+        "laptopEdge": "assets/plates/lidless-safe-photo.png: laptop edge and cable on paper, bottom of the safety card",
+        "icon": "assets/plates/lidless-icon.png: real app icon from Icon Composer (ictool)",
+        "panelSafety": "assets/plates/lidless-panel-safety.png: real screenshot cropped to the panel edge"
+      },
+      "code": [
+        "sign lettering and countdown",
+        "off-air smoked glass layer",
+        "sign divider",
+        "session keys and closed-lid key",
+        "engraved groove",
+        "meter labels and 20% stop label",
+        "download",
+        "tape caption text",
+        "paper band, cards, table",
+        "line icons (inline SVG)"
+      ]
+    },
+    "shadows": [
+      {
+        "name": "sign-glow",
+        "value": "drop-shadow(0 0 calc(36 * var(--u)) rgb(232 48 43 / 0.45)) drop-shadow(0 calc(30 * var(--u)) calc(50 * var(--u)) rgb(232 48 43 / 0.25))",
+        "purpose": "Sign plate while on air only."
+      },
+      {
+        "name": "sign-halo",
+        "value": "text-shadow: 0 0 calc(12 * var(--u)) rgb(255 210 170 / 0.5), 0 0 calc(2 * var(--u)) rgb(255 240 220 / 0.7)",
+        "purpose": "Sign lettering on air."
+      },
+      {
+        "name": "key-ring",
+        "value": "inset 0 0 0 1px rgb(244 238 230 / 0.28)",
+        "purpose": "Session, closed-lid and step keys; separators inset 1px 0 0 at 22%."
+      },
+      {
+        "name": "engraved-groove",
+        "value": "border-top: 1px solid #676561; box-shadow: 0 -1px 0 #090301, inset 0 1px 0 #544f4e, inset 0 2px 0 #0a0302",
+        "purpose": "Rule above the safety line in the console."
+      },
+      {
+        "name": "download",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.25), 0 calc(8 * var(--u)) calc(24 * var(--u)) rgb(232 48 43 / 0.35)",
+        "purpose": "Download, red bloom."
+      },
+      {
+        "name": "shot",
+        "value": "0 0 0 1px rgb(244 238 230 / 0.12), 0 calc(20 * var(--u)) calc(50 * var(--u)) rgb(0 0 0 / 0.55)",
+        "purpose": "App screenshots on night."
+      }
+    ],
+    "gradients": [
+      {
+        "name": "download",
+        "value": "linear-gradient(#f33a33, #d81f1d)",
+        "purpose": "Download; hover linear-gradient(#ff4a42, #e3291f)."
+      },
+      {
+        "name": "off-air-glass",
+        "value": "radial-gradient(ellipse at 50% 45%, #2a0907, #120403) at opacity 0.94",
+        "purpose": "Smoked layer over the same sign plate when off air."
+      },
+      {
+        "name": "paper-card",
+        "value": "linear-gradient(#ebe8e2, #dedad3)",
+        "purpose": "Safety card and security card."
+      }
+    ],
+    "motion": [
+      {
+        "name": "tick",
+        "value": "1000ms",
+        "purpose": "Countdown re-render from wall time; m:ss under an hour, h:mm:ss above."
+      },
+      {
+        "name": "sessions",
+        "value": "15 min, 1 h, 3 h, Until… (to next full hour, min 60 s), ∞ (counts up)",
+        "purpose": "A key restarts the session; zero turns the sign off."
+      },
+      {
+        "name": "sign-toggle",
+        "value": "press: on air -> off; off -> on with selected session",
+        "purpose": "Demo of the app's sign button."
+      },
+      {
+        "name": "lamp",
+        "value": "opacity, color, text-shadow 180ms ease-out",
+        "purpose": "Glass lights and dims like a lamp."
+      },
+      {
+        "name": "pause",
+        "value": "IntersectionObserver on the sign + document.hidden",
+        "purpose": "No render off screen or in a hidden tab."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce => lamp transitions none; countdown still steps",
+        "purpose": "State remains, animation goes."
+      },
+      {
+        "name": "no-js",
+        "value": "sign lit at 59:58, 1 h selected",
+        "purpose": "Server-rendered start state."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "desktop",
+        "value": ">= 64rem; --u = 100vw / 1536"
+      },
+      {
+        "name": "mobile",
+        "value": "max-width: 63.99rem; --u = 100vw / 620 with px overrides"
+      }
+    ],
+    "provenance": {
+      "appIcon": "assets/plates/lidless-icon.png (+ .json): lidless/App/Resources/AppIcon.icon @ 13b439d via ictool; adopted by the app in v0.4.1",
+      "screenshots": "src/assets/products/lidless/SOURCE.json: repo lidless, ref develop, commit 13b439d1, path per file",
+      "panelSafety": "assets/plates/lidless-panel-safety.png.json: docs/images/panel-safety.png cropped to the panel edge, alpha from panel-timer.png",
+      "generatedPlates": "studio, sign, meters, tape, laptop edge: impeccable:prompt tEXt chunk embedded in each PNG (codex exec, gpt-image, comp crop as reference)"
+    }
+  },
+  "components": [
+    {
+      "name": "ON AIR sign",
+      "kind": "button",
+      "refersTo": "on-air-sign",
+      "description": "Live lettering over the lit glass; aria-pressed; off air smokes the same glass.",
+      "html": "<button class=\"ds-sign\" aria-pressed=\"true\"><span>ON AIR</span><i></i><span>59:58</span></button>",
+      "css": ".ds-sign{display:inline-flex;align-items:center;gap:22px;padding:22px 40px;border:0;border-radius:14px;background:radial-gradient(ellipse at 50% 45%,#f0412f,#a8150f);color:#fff1d6;font:700 72px/1 'Sofia Sans Extra Condensed',sans-serif;letter-spacing:.035em;text-shadow:0 0 12px rgb(255 210 170/.5),0 0 2px rgb(255 240 220/.7);filter:drop-shadow(0 0 36px rgb(232 48 43/.45));cursor:pointer;transition:color 180ms ease-out,filter 180ms ease-out}.ds-sign i{width:2px;height:56px;background:rgb(255 220 200/.5)}.ds-sign span:last-child{font-size:54px;letter-spacing:-.02em}.ds-sign[aria-pressed=false]{background:radial-gradient(ellipse at 50% 45%,#2a0907,#120403);color:#5a2a24;text-shadow:none;filter:none}"
+    },
+    {
+      "name": "Session keys",
+      "kind": "custom",
+      "refersTo": "session-keys",
+      "description": "Five studio keys on dark glass; active key heavier.",
+      "html": "<div class=\"ds-keys\"><button>15 min</button><button aria-pressed=\"true\">1 h</button><button>3 h</button><button>Until…</button><button>∞</button></div>",
+      "css": ".ds-keys{display:grid;grid-template-columns:1.1fr .9fr .9fr 1.1fr 1.05fr;width:486px;height:50px;border-radius:12px;background:rgb(20 16 15/.96);box-shadow:inset 0 0 0 1px rgb(244 238 230/.28);overflow:hidden}.ds-keys button{border:0;background:none;color:#f4eee6;font:400 17px 'Roboto Flex Variable',system-ui,sans-serif}.ds-keys button+button{box-shadow:inset 1px 0 0 rgb(244 238 230/.22)}.ds-keys button[aria-pressed=true]{font-weight:650}.ds-keys button:last-child{font-size:24px}"
+    },
+    {
+      "name": "Engraved groove",
+      "kind": "custom",
+      "refersTo": "session-keys",
+      "description": "Console rule cut as a light edge over a dark line, with the safety line below.",
+      "html": "<p class=\"ds-groove\">Stops below 20% battery · Pauses when hot · Closed on battery: up to 4 h</p>",
+      "css": ".ds-groove{width:486px;margin:0;padding-top:12px;border-top:1px solid #676561;box-shadow:0 -1px 0 #090301,inset 0 1px 0 #544f4e,inset 0 2px 0 #0a0302;background:#140c0a;color:#b9b0a8;font:400 15.5px 'Roboto Flex Variable',sans-serif;font-stretch:92%;text-align:center}"
+    },
+    {
+      "name": "Download",
+      "kind": "button",
+      "refersTo": "download",
+      "description": "The red action with version meta below.",
+      "html": "<a class=\"ds-dl\" href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3.5v12M6.5 10l5.5 5.5 5.5-5.5M4.5 20h15\"/></svg><span>Download for macOS</span></a>",
+      "css": ".ds-dl{display:inline-flex;align-items:center;justify-content:center;gap:18px;width:369px;height:59px;border-radius:9px;background:linear-gradient(#f33a33,#d81f1d);color:#fff;font:600 22px 'Roboto Flex Variable',system-ui,sans-serif;text-decoration:none;box-shadow:inset 0 1px 0 rgb(255 255 255/.25),0 8px 24px rgb(232 48 43/.35)}.ds-dl svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2}.ds-dl:hover{background:linear-gradient(#ff4a42,#e3291f)}.ds-dl:focus-visible{outline:2px solid #f4eee6;outline-offset:4px}"
+    },
+    {
+      "name": "Closed-lid key",
+      "kind": "button",
+      "refersTo": "closed-lid-key",
+      "description": "Toggle key with a laptop line icon; off is faint ink.",
+      "html": "<button class=\"ds-lid\" aria-pressed=\"true\"><svg viewBox=\"0 0 30 20\" aria-hidden=\"true\"><path d=\"M5 2.5h20v13H5zM1.5 17.5h27\"/></svg><span>Closed-lid mode</span></button>",
+      "css": ".ds-lid{display:inline-flex;align-items:center;justify-content:center;gap:22px;width:332px;height:50px;border:0;border-radius:10px;background:rgb(30 23 21/.96);box-shadow:inset 0 0 0 1px rgb(244 238 230/.28);color:#f4eee6;font:400 19px 'Roboto Flex Variable',sans-serif}.ds-lid svg{width:30px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6}.ds-lid[aria-pressed=false]{color:#8a8079}"
+    },
+    {
+      "name": "Paper card",
+      "kind": "card",
+      "refersTo": "paper-card",
+      "description": "Safety and security cards on the paper band.",
+      "html": "<div class=\"ds-paper\"><div class=\"ds-card\"><strong>One command</strong><span>The helper's only privileged action is pmset -a disablesleep 0|1.</span></div></div>",
+      "css": ".ds-paper{padding:24px;background:#f9f6ef}.ds-card{display:flex;flex-direction:column;gap:6px;padding:28px 30px;border-radius:18px;background:linear-gradient(#ebe8e2,#dedad3);color:#57534e;font:400 17px/24px 'Roboto Flex Variable',sans-serif}.ds-card strong{color:#151414;font-weight:700}"
+    },
+    {
+      "name": "Tape caption",
+      "kind": "custom",
+      "refersTo": "tape-caption",
+      "description": "Neucha caption on the masking-tape plate (tape approximated in CSS here).",
+      "html": "<p class=\"ds-tape\">lid closed · still on air</p>",
+      "css": ".ds-tape{display:inline-grid;place-items:center;height:48px;margin:0;padding:0 24px;background:#d9c9a8;color:#24170f;font:400 32px 'Neucha',cursive;white-space:nowrap}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Studio Wall When the Red Light Is On",
+    "overview": "The first screen is a broadcast studio at night: charcoal acoustic foam, dark wood desk, a closed laptop with its cable, headphones and a microphone at the edge. On the wall hangs one red-glass ON AIR sign with a countdown, and the sign is a real button. Press it and the page goes off air; press again and it comes back on and counts. Under it sit the studio controls: the five session keys (15 min, 1 h, 3 h, Until…, ∞), the closed-lid key, the safety line in an engraved groove, and the red download with live version, size, macOS floor and licence. On the left are the icon, LIDLESS, the byline, the headline, one sentence, and two riveted studio meters (battery with its 20% stop line, heat). A strip of masking tape on the desk edge reads \"lid closed · still on air\" in a marker hand.\n\nBelow the studio the page turns to paper: a warm off-white band (\"Safe by design\" with the three safety items and the laptop-edge photo), then the recovery table and the security model on the same paper. It then returns to the night wall for the real app screenshots, the menu-bar icon states, and the install steps with the second download.",
+    "keyCharacteristics": [
+      "Night wall (`night`) with a full-bleed studio photo plate behind an absolutely placed hero on comp coordinates.",
+      "One red: the sign's lamp, the on-air state, and the download.",
+      "Roboto Flex variable for every text role, narrowed with `wdth` rather than switching faces. Sofia Sans Extra Condensed only on the sign and console numerals. Neucha only on the tape.",
+      "Physical objects are plates (studio, sign housing, meters, tape, laptop edge, icon). Controls, lettering, rules and the off-state glass are code.",
+      "A paper band (`paper`) for the safety and recovery reading, framed by night above and below.",
+      "One unit, `--u = 100vw / 1536` on desktop and `100vw / 620` under 63.99rem, with px overrides on mobile.",
+      "One motion: the demo sign counts each second and lights or dims in 180 ms."
+    ],
+    "rules": [
+      {
+        "name": "The One Red Rule",
+        "body": "Code paints red in three places only: the lamp (the sign plate's glow), the on-air state, and the download. The focus ring is `ink`, not red. Plates and real app screenshots keep their own reds (the meters' heat ramp, the app's sign and toggles in the panel renders), because those are the objects' native colours, not page decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper Band Rule",
+        "body": "Reading that has to be trusted (safety, recovery, security) sits on `paper` with `paper-ink`. Everything that shows the product working sits on `night`. The page goes night, paper, night, and never alternates more than that.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shell Mirror Rule",
+        "body": "`--shell-ink` = `ink`, `--shell-ground` = `night`, `--shell-accent` = `on-air`, and `--shell-font` = Roboto Flex Variable.",
+        "section": "colors"
+      },
+      {
+        "name": "The Narrow Not Swap Rule",
+        "body": "To fit a measure, reduce Roboto Flex's width (`font-stretch` 78% to 92%), never switch to a second text face. Headings stay at full width.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sign Face Rule",
+        "body": "Sofia Sans Extra Condensed sets the sign and the console's numerals (step keys, \"coming soon\"), never prose or headings. Neucha sets only the tape.",
+        "section": "typography"
+      },
+      {
+        "name": "The Per-Language Sign Rule",
+        "body": "The sign's lettering is placed per language on the plate's coordinates. EN: the word at (84u, 75u) and the time at (454u, 87u), with the divider at 421u. RU: «В ЭФИРЕ» at (54u, 82u), 124u, and the time at (482u, 92u), 96u, with the divider at 457u. A new language gets its own coordinates rather than a shrunk copy of English.",
+        "section": "typography"
+      },
+      {
+        "name": "The Comp Coordinates Rule",
+        "body": "On desktop the hero is a plate with children placed at the comp's measured boxes in `--u`. Do not convert it to a flex or grid hero, and keep the console's 8u axis shift.",
+        "section": "layout"
+      },
+      {
+        "name": "The Engraved Groove Rule",
+        "body": "Rules inside the studio console are cut, not drawn: a light edge over a dark line, as the comp shows. A flat grey hairline is wrong here. The topbar hairline (16% ink) and the paper rules are plain because they are not on the console.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Glow Is State Rule",
+        "body": "Red light on the wall exists only while the sign is on air. Off air, the plate's filter, the letter halo and the red divider all go out.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** size in `--u` on desktop and switch to px under 63.99rem for every text, key and control.",
+      "**Do** place hero elements at comp coordinates on desktop, and on mobile anchor the studio plate to the hero bottom with a masked top.",
+      "**Do** narrow Roboto Flex with `wdth` to fit a measure.",
+      "**Do** give each language its own sign coordinates and sizes.",
+      "**Do** draw physical objects as plates with provenance and draw lettering, controls, rules and states in code over them.",
+      "**Do** cut console rules as the engraved groove.",
+      "**Do** put trust reading (safety, recovery, security) on the paper band and product proof on the night wall.",
+      "**Do** take version, size, macOS floor and licence from `releases.json` and the product YAML, never from the comp.",
+      "**Do** source every raster with provenance (`src/assets/products/lidless/SOURCE.json`, the plates' embedded `impeccable:prompt` text and `.json` sidecars)."
+    ],
+    "donts": [
+      "**Don't** paint red in code anywhere but the lamp, the on-air state and the download (selection excepted).",
+      "**Don't** add a second sign plate for the off state. Smoke the glass of the same plate.",
+      "**Don't** set prose or headings in Sofia Sans Extra Condensed, or anything but the tape in Neucha.",
+      "**Don't** draw a flat hairline where the console's groove belongs.",
+      "**Don't** invent claims. Copy comes from the app's README and README.ru, and sign, session and meter labels come from the app's strings.",
+      "**Don't** apply hub materials (board fibre, Hub Display, ink mask, signal orange) or Ochre's graphite, flaps or mustard here."
+    ]
+  }
+}
