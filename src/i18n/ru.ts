@@ -12,7 +12,7 @@ export const ru = {
   footerOrg: 'CyberTech team',
   footerGithub: 'GitHub',
   license: 'Лицензия',
-  notFoundTitle: 'Страница не найдена',
+  notFoundTitle: 'Страница не\u00a0найдена',
   notFoundBody: 'Такой страницы нет. Вернитесь к списку утилит.',
   hubTitle: 'CyberTech team — нативные утилиты для строки меню Mac',
   hubDescription: 'Бесплатные утилиты для строки меню macOS с открытым кодом от небольшой независимой команды.',
