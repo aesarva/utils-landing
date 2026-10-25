@@ -6,7 +6,7 @@ export const ru = {
   requires: (macos: string) => `macOS ${macos} и новее`,
   universal: 'Универсальная сборка',
   appleSilicon: 'Apple Silicon',
-  hub: 'Все утилиты',
+  hub: 'Все\u00a0утилиты',
   langLabel: 'English',
   langName: 'Русский',
   footerOrg: 'CyberTech team',

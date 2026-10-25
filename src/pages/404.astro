@@ -37,7 +37,7 @@ const en = t('en');
     display: grid;
     grid-template-columns: calc(434 * var(--u)) 1fr 1fr;
     column-gap: calc(32 * var(--u));
-    align-items: end;
+    align-items: start;
     margin: 0 var(--gutter);
     padding: calc(10 * var(--u)) 0 calc(28 * var(--u));
     border-bottom: var(--rule) solid var(--ink);
@@ -50,6 +50,9 @@ const en = t('en');
     letter-spacing: -0.04em;
     color: transparent;
     -webkit-text-stroke: calc(4 * var(--u)) var(--ink);
+  }
+  .notfound-text {
+    padding-top: calc(70 * var(--u));
   }
   .notfound-title {
     margin: 0 0 calc(10 * var(--u));
@@ -72,6 +75,9 @@ const en = t('en');
       grid-template-columns: 1fr;
       row-gap: 18px;
       padding: 16px 0 24px;
+    }
+    .notfound-text {
+      padding-top: 0;
     }
     .notfound-code {
       font-size: clamp(110px, 32vw, 220px);

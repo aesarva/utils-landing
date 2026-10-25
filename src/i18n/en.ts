@@ -8,7 +8,7 @@ export const en: Dict = {
   requires: (macos: string) => `macOS ${macos} or later`,
   universal: 'Universal build',
   appleSilicon: 'Apple Silicon',
-  hub: 'All utilities',
+  hub: 'All\u00a0utilities',
   langLabel: 'Русский',
   langName: 'English',
   footerOrg: 'CyberTech team',
