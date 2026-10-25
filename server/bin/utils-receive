@@ -4,8 +4,11 @@
 # Пустой stdin — откат: current переключается на новейший из лежащих релизов этого <sha>.
 # Каждая выкладка — новый каталог releases/<sha>.<наносекунды>-<pid>; current переключается атомарно,
 # поэтому повторная выкладка того же sha не оставляет current висячей.
-# Коды: 0 — готово; 2 — плохой sha; 3 — пустой stdin, а релиза нет; 4 — архив больше лимита, битый или небезопасный
-# (симлинки, хардлинки, устройства, fifo, sparse, абсолютные пути и «..»);
+# Архив проверяет и распаковывает один и тот же разборщик (python tarfile) за один проход: tar -x не вызывается,
+# поэтому расхождения разборщиков (обычный файл с именем на «/», битый заголовок посередине) не протащат член мимо проверок.
+# Коды: 0 — готово; 2 — плохой sha или нецелый срок; 3 — пустой stdin, а релиза нет; 4 — архив больше лимита, битый
+# или небезопасный (симлинки, хардлинки, устройства, fifo, sparse, абсолютные пути и «..», повторы имён, мусор после
+# конца архива), либо распаковка не уложилась в UTILS_EXTRACT_TIMEOUT секунд (по умолчанию 120);
 # 5 — в сборке нет index.html, en/index.html или 404.html; 6 — другая выкладка уже идёт (занят замок);
 # 7 — загрузка не завершилась за UTILS_UPLOAD_TIMEOUT секунд (по умолчанию 300): замок не держится вечно.
 set -euo pipefail
@@ -14,10 +17,12 @@ cd /
 
 ROOT=${UTILS_ROOT:-/srv/utils/site}
 MAX=${UTILS_MAX_BYTES:-52428800}
-# Лимит распакованного (сумма размеров файлов в архиве): сжатая «бомба» иначе забила бы общий с VPN диск.
+# Лимит распакованного (сумма байт, реально записанных в файлы): сжатая «бомба» иначе забила бы общий с VPN диск.
 UNPACK_MAX=${UTILS_MAX_UNPACKED:-209715200}
 # Общий срок приёма архива: живой клиент мог бы держать stdin открытым, а с ним и замок, бесконечно.
 UPLOAD_TIMEOUT=${UTILS_UPLOAD_TIMEOUT:-300}
+# Срок распаковки: глубокие пути и тысячи членов не должны держать замок дольше.
+EXTRACT_TIMEOUT=${UTILS_EXTRACT_TIMEOUT:-120}
 KEEP=5
 SHA=${SSH_ORIGINAL_COMMAND:-${1:-}}
 
@@ -30,9 +35,13 @@ if [[ ! $UPLOAD_TIMEOUT =~ ^[1-9][0-9]*$ ]]; then
   echo "utils-receive: UTILS_UPLOAD_TIMEOUT должен быть целым числом секунд, получено: '$UPLOAD_TIMEOUT'" >&2
   exit 2
 fi
-# python3 нужен и для приёма с таймаутом, и для проверки архива.
+if [[ ! $EXTRACT_TIMEOUT =~ ^[1-9][0-9]*$ ]]; then
+  echo "utils-receive: UTILS_EXTRACT_TIMEOUT должен быть целым числом секунд, получено: '$EXTRACT_TIMEOUT'" >&2
+  exit 2
+fi
+# python3 нужен и для приёма с таймаутом, и для проверки с распаковкой архива.
 if ! command -v python3 > /dev/null 2>&1; then
-  echo "utils-receive: нет python3 для приёма и проверки архива" >&2
+  echo "utils-receive: нет python3 для приёма и распаковки архива" >&2
   exit 4
 fi
 
@@ -102,7 +111,7 @@ prune() {
 # stdin (архив) передаётся в fd 3, потому что stdin python занят текстом скрипта.
 # Коды python: 0 — принят целиком; 7 — срок вышел; 8 — больше MAX.
 UPLOAD_RC=0
-python3 - "$UPLOAD" "$MAX" "$UPLOAD_TIMEOUT" 3<&0 << 'PY' || UPLOAD_RC=$?
+python3 -I - "$UPLOAD" "$MAX" "$UPLOAD_TIMEOUT" 3<&0 << 'PY' || UPLOAD_RC=$?
 import os, select, sys, time
 
 path, cap, timeout = sys.argv[1], int(sys.argv[2]), float(sys.argv[3])
@@ -153,22 +162,44 @@ if ((SIZE == 0)); then
   exit 0
 fi
 
-# Проверка архива ДО распаковки: только обычные файлы и каталоги, без абсолютных путей и «..»,
-# без release.txt (его пишет приёмник), не больше 20000 членов, сумма размеров не больше лимита.
-# Поток после gzip ограничен (лимит + 1 МиБ на заголовки tar) ещё до разбора: огромные PAX/GNU-метаданные
-# иначе выделились бы в памяти раньше проверок размера. Битый gzip/tar — тоже отказ.
-if ! python3 - "$UPLOAD" "$UNPACK_MAX" << 'PY'
-import gzip, sys, tarfile
+# Проверка и распаковка — один проход одного разборщика: python tarfile в потоковом режиме читает распакованный
+# gzip-поток и сам пишет на диск ровно те члены, которые проверил; tar -x не вызывается.
+# Правила: только обычные файлы и каталоги; без абсолютных путей, «..», пустых имён и NUL; без release.txt
+# (его пишет приёмник); обычный файл с именем на «/» и повтор имени (файла или каталога) — отказ.
+# Каталоги создаются по одному компоненту относительно дескриптора родителя (O_DIRECTORY|O_NOFOLLOW),
+# файлы — O_CREAT|O_EXCL|O_NOFOLLOW: симлинк или уже существующий путь — отказ, а не запись мимо staging.
+# Лимиты: записанные байты — не больше UNPACK_MAX; членов вместе с неявными каталогами — не больше 20000;
+# распакованный поток — не больше UNPACK_MAX + 1 МиБ (огромные PAX/GNU-метаданные иначе выделились бы в памяти
+# раньше проверок); срок — EXTRACT_TIMEOUT. После конца архива поток дочитывается: в нём допустимы только нули.
+# Коды python: 0 — распакован; 9 — срок вышел; остальное — отказ (причина в stderr).
+EXTRACT_RC=0
+python3 -I - "$UPLOAD" "$INCOMING" "$UNPACK_MAX" "$EXTRACT_TIMEOUT" << 'PY' || EXTRACT_RC=$?
+import gzip, os, signal, sys, tarfile
 
-path, limit = sys.argv[1], int(sys.argv[2])
-MAX_MEMBERS = 20000
+path, dest, limit, timeout = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+MAX_ENTRIES = 20000
+MAX_NAME = 4096
+CHUNK = 1 << 16
+# Сколько последних байт потока помнить: tarfile читает вперёд не больше записи (10 КиБ) и заголовка.
+TAIL = 1 << 16
+DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+FILE_FLAGS = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+
+
+class Timeout(BaseException):
+    """Срок распаковки вышел. BaseException: внутренние except Exception его не проглотят."""
+
+
+def on_alarm(signum, frame):
+    raise Timeout()
 
 
 class Capped:
-    """Читает gzip-поток не дальше cap байт; превышение — исключение до выделения лишнего."""
+    """Читает распакованный поток не дальше cap байт (превышение — исключение до выделения лишнего)
+    и помнит хвост отданного: по нему проверяется всё, что лежит после конца архива."""
 
     def __init__(self, f, cap):
-        self.f, self.left = f, cap
+        self.f, self.left, self.pos, self.tail = f, cap, 0, bytearray()
 
     def read(self, n=-1):
         want = self.left + 1 if n is None or n < 0 else min(n, self.left + 1)
@@ -176,45 +207,158 @@ class Capped:
         if len(data) > self.left:
             raise ValueError('распакованный поток больше лимита')
         self.left -= len(data)
+        self.pos += len(data)
+        self.tail += data
+        if len(self.tail) > 2 * TAIL:
+            del self.tail[:-TAIL]
         return data
 
 
-total = 0
-count = 0
+entries = 0
+written = 0
+
+
+def bump():
+    """Член архива или неявно созданный каталог: и то и другое занимает место, лимит общий."""
+    global entries
+    entries += 1
+    if entries > MAX_ENTRIES:
+        sys.exit('слишком много членов архива (вместе с неявными каталогами больше %d)' % MAX_ENTRIES)
+
+
+def parts_of(name):
+    """Компоненты пути без пустых и «.»; небезопасное имя — отказ."""
+    if not name or '\0' in name or name.startswith('/') or len(name.encode('utf-8', 'surrogateescape')) > MAX_NAME:
+        sys.exit('небезопасный путь: %r' % name)
+    parts = [p for p in name.split('/') if p not in ('', '.')]
+    if '..' in parts:
+        sys.exit('небезопасный путь: %r' % name)
+    return parts
+
+
+def open_dir(parts):
+    """Дескриптор каталога dest/parts; недостающие каталоги создаются (0o755). Симлинк или файл
+    на пути не открывается (ELOOP/ENOTDIR) — исключение, то есть отказ."""
+    fd = os.open(dest, DIR_FLAGS)
+    try:
+        for p in parts:
+            try:
+                os.mkdir(p, 0o755, dir_fd=fd)
+                bump()
+            except FileExistsError:
+                pass
+            nfd = os.open(p, DIR_FLAGS, dir_fd=fd)
+            os.close(fd)
+            fd = nfd
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def make_dir(parts):
+    """Каталог-член; уже созданный неявно (файлами внутри него) — допустим."""
+    if not parts:
+        return
+    fd = open_dir(parts[:-1])
+    try:
+        try:
+            os.mkdir(parts[-1], 0o755, dir_fd=fd)
+        except FileExistsError:
+            pass
+        os.close(os.open(parts[-1], DIR_FLAGS, dir_fd=fd))
+    finally:
+        os.close(fd)
+
+
+def write_file(tf, m, parts):
+    """Файл-член: создаётся заново (O_EXCL), копируется ровно m.size байт; записанное сразу идёт в лимит."""
+    global written
+    fd = open_dir(parts[:-1])
+    try:
+        out = os.open(parts[-1], FILE_FLAGS, 0o644, dir_fd=fd)
+    finally:
+        os.close(fd)
+    try:
+        src = tf.extractfile(m)
+        left = m.size
+        while left > 0:
+            chunk = src.read(min(CHUNK, left))
+            if not chunk:
+                sys.exit('член архива обрывается: %r' % m.name)
+            written += len(chunk)
+            if written > limit:
+                sys.exit('распакованная сборка больше %d байт' % limit)
+            view = memoryview(chunk)
+            while view:
+                view = view[os.write(out, view):]
+            left -= len(chunk)
+    finally:
+        os.close(out)
+
+
+signal.signal(signal.SIGALRM, on_alarm)
+signal.alarm(timeout)
 try:
     with gzip.open(path, 'rb') as gz:
-        with tarfile.open(fileobj=Capped(gz, limit + 1024 * 1024), mode='r|') as tf:
-            for m in tf:
-                count += 1
-                if count > MAX_MEMBERS:
-                    sys.exit('слишком много членов архива')
-                name = m.name
-                if not name or '\0' in name or name.startswith('/') or '..' in name.split('/'):
-                    sys.exit('небезопасный путь: %r' % name)
-                if [p for p in name.split('/') if p not in ('', '.')] == ['release.txt']:
-                    sys.exit('release.txt пишет только приёмник')
-                if m.type not in (tarfile.REGTYPE, tarfile.AREGTYPE, tarfile.DIRTYPE):
-                    sys.exit('недопустимый тип члена архива: %r' % name)
-                if m.sparse is not None or any(k.startswith('GNU.sparse') for k in m.pax_headers):
-                    sys.exit('sparse-файлы не принимаются: %r' % name)
-                if m.isreg():
-                    total += m.size
-                    if total > limit:
-                        sys.exit('распакованная сборка больше %d байт' % limit)
+        stream = Capped(gz, limit + 1024 * 1024)
+        tf = tarfile.open(fileobj=stream, mode='r|', encoding='utf-8', errors='surrogateescape')
+        seen = set()
+        for m in tf:
+            bump()
+            name = m.name
+            parts = parts_of(name)
+            if parts == ['release.txt']:
+                sys.exit('release.txt пишет только приёмник')
+            if m.type not in (tarfile.REGTYPE, tarfile.AREGTYPE, tarfile.DIRTYPE):
+                sys.exit('недопустимый тип члена архива: %r' % name)
+            if m.sparse is not None or any(k.startswith('GNU.sparse') for k in m.pax_headers):
+                sys.exit('sparse-файлы не принимаются: %r' % name)
+            key = '/'.join(parts)
+            if key in seen:
+                sys.exit('повтор имени в архиве: %r' % name)
+            seen.add(key)
+            if m.isdir():
+                if m.size:
+                    sys.exit('каталог с данными: %r' % name)
+                make_dir(parts)
+            else:
+                if not parts or name.endswith('/'):
+                    sys.exit('обычный файл с именем каталога: %r' % name)
+                write_file(tf, m, parts)
+        # Конец по tarfile — нулевой блок, битый заголовок или обрыв. Всё от этой позиции до конца потока
+        # (сам блок конца, остаток записи) должно быть нулями: иначе за «концом» лежат данные,
+        # которые другой разборщик прочёл бы как члены.
+        end = tf.offset
+        start = stream.pos - len(stream.tail)
+        if not start <= end <= stream.pos:
+            sys.exit('не удалось проверить конец архива')
+        rest = bytes(stream.tail[end - start:])
+        while True:
+            if rest.count(0) != len(rest):
+                sys.exit('после конца архива есть данные, кроме нулей')
+            rest = stream.read(CHUNK)
+            if not rest:
+                break
+    signal.alarm(0)
+except Timeout:
+    sys.exit(9)
 except SystemExit:
     raise
 except Exception as e:
-    sys.exit('архив не читается: %s' % e)
+    sys.exit('архив не читается или не распаковывается: %s' % e)
 PY
-then
-  echo "utils-receive: архив отклонён" >&2
-  exit 4
-fi
-
-if ! tar -xzf "$UPLOAD" -C "$INCOMING" --no-same-owner --no-same-permissions 2> /dev/null; then
-  echo "utils-receive: архив не распаковался" >&2
-  exit 4
-fi
+case $EXTRACT_RC in
+  0) ;;
+  9)
+    echo "utils-receive: распаковка не завершилась за $EXTRACT_TIMEOUT с" >&2
+    exit 4
+    ;;
+  *)
+    echo "utils-receive: архив отклонён" >&2
+    exit 4
+    ;;
+esac
 # Второй рубеж: после распаковки не должно быть ничего, кроме файлов и каталогов.
 if [[ -n $(find "$INCOMING" ! -type f ! -type d -print -quit) ]]; then
   echo "utils-receive: в сборке есть не файлы и не каталоги" >&2
@@ -231,7 +375,7 @@ printf '%s %s\n' "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$INCOMING/release.tx
 # nginx читает релиз: каталоги 755, файлы 644, независимо от umask и прав в архиве.
 find "$INCOMING" -type d -exec chmod 755 {} +
 find "$INCOMING" -type f -exec chmod 644 {} +
-NAME=$SHA.$(python3 -c 'import time; print("%020d" % time.time_ns())')-$$
+NAME=$SHA.$(python3 -I -c 'import time; print("%020d" % time.time_ns())')-$$
 mv "$INCOMING" "$RELEASES/$NAME"
 INCOMING=""
 switch_current "$NAME"

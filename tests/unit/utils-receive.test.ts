@@ -76,6 +76,62 @@ sys.stdout.buffer.write(buf.getvalue())
   return r.stdout;
 }
 
+/**
+ * Архив из сырых байт tar (Python): сниппет собирает `raw` из готовых кусков и сжимается gzip целиком.
+ * hdr — один ustar-заголовок, member — заголовок с данными и выравниванием, SITE — обязательные файлы,
+ * END — два нулевых блока конца архива. Так получаются ровно те байты, которые не пишет ни один честный tar.
+ */
+function rawArchive(snippet: string): Buffer {
+  const py = `
+import gzip, sys, tarfile
+def hdr(name, size=0, type=tarfile.REGTYPE):
+    ti = tarfile.TarInfo(name); ti.size = size; ti.type = type
+    return ti.tobuf(tarfile.USTAR_FORMAT, 'utf-8', 'surrogateescape')
+def member(name, data=b'', type=tarfile.REGTYPE):
+    return hdr(name, len(data), type) + data + b'\\0' * (-len(data) % 512)
+SITE = member('index.html', b'X') + member('en/index.html', b'en') + member('404.html', b'404')
+END = b'\\0' * 1024
+${snippet}
+sys.stdout.buffer.write(gzip.compress(raw))
+`;
+  const r = spawnSync('python3', ['-I', '-c', py], { maxBuffer: 1 << 26 });
+  if (r.status !== 0) throw new Error(String(r.stderr));
+  return r.stdout;
+}
+
+/** Все пути под каталогом (относительные, каталоги с «/» на конце), отсортированные. */
+function walk(dir: string, prefix = ''): string[] {
+  const out: string[] = [];
+  for (const e of readdirSync(join(dir, prefix), { withFileTypes: true })) {
+    const rel = prefix ? `${prefix}/${e.name}` : e.name;
+    if (e.isDirectory()) out.push(`${rel}/`, ...walk(dir, rel));
+    else out.push(rel);
+  }
+  return out.sort();
+}
+
+/** Дерево, похожее на dist: вложенные каталоги, двоичные файлы, пустой файл и каталог, UTF-8 и длинные имена. */
+function distLike(long: boolean): string {
+  const dir = tmp('distlike-');
+  const put = (rel: string, data: Buffer | string) => {
+    mkdirSync(join(dir, rel, '..'), { recursive: true });
+    writeFileSync(join(dir, rel), data);
+  };
+  put('index.html', '<!doctype html>ru');
+  put('404.html', '404');
+  put('en/index.html', 'en');
+  put('_astro/app.Bx9c.css', 'a{}'.repeat(4000));
+  put('_astro/fonts/inter.woff2', randomBytes(30_000));
+  put('img/логотип.svg', '<svg/>');
+  put('empty.txt', '');
+  mkdirSync(join(dir, 'empty-dir'));
+  // 130 символов: ustar кладёт такое имя в prefix + name.
+  put(`${'a'.repeat(60)}/${'b'.repeat(60)}/file.txt`, 'deep');
+  // Больше 255 символов: только pax и gnu (длинное имя отдельным заголовком).
+  if (long) put(`${'c'.repeat(100)}/${'d'.repeat(100)}/${'e'.repeat(100)}.txt`, 'longer');
+  return dir;
+}
+
 function receive(sha: string, input: Buffer | string, env: Record<string, string> = {}) {
   return spawnSync('bash', [SCRIPT, sha], { input, env: { ...process.env, UTILS_ROOT: root, ...env } });
 }
@@ -155,6 +211,14 @@ describe('utils-receive', () => {
       ['каталог release.txt', [{ name: 'release.txt', kind: 'dir' }]],
       ['файл ./release.txt', [{ name: './release.txt', kind: 'file' }]],
       ['логический размер больше лимита', [{ name: 'big', kind: 'file', size: 2 * 1024 * 1024 }]],
+      ['обычный файл с именем на «/»', [{ name: 'pad/', kind: 'file' }]],
+      ['повтор имени: второй index.html', [{ name: 'index.html', kind: 'file' }]],
+      ['повтор имени: файл и ./файл', [{ name: 'x', kind: 'file' }, { name: './x', kind: 'file' }]],
+      ['повтор имени: каталог, затем файл', [{ name: 'dup', kind: 'dir' }, { name: 'dup', kind: 'file' }]],
+      ['повтор имени: каталог дважды', [{ name: 'dup', kind: 'dir' }, { name: 'dup/', kind: 'dir' }]],
+      ['файл, затем путь сквозь него', [{ name: 'f', kind: 'file' }, { name: 'f/x', kind: 'file' }]],
+      // Каждый размер честный, но сумма записанного (300 × 4 КиБ) больше лимита в 1 МиБ.
+      ['много мелких файлов сверх лимита', Array.from({ length: 300 }, (_, i) => ({ name: `f/${i}`, kind: 'file' as const, size: 4096 })), { message: 'больше 1048576 байт' }],
     ];
     for (const [what, members, extra] of cases) {
       it(`${what}: код 4, current прежний, внешний файл цел`, () => {
@@ -178,6 +242,122 @@ describe('utils-receive', () => {
         expect(readdirSync(outside)).toEqual(['sentinel']);
         expect(leftovers()).toEqual([]);
       });
+    }
+  });
+
+  describe('один разборщик: проверяется ровно то, что пишется на диск', () => {
+    /** Отказ без следов: код 4, current прежний, лишних релизов и временных каталогов нет. */
+    function rejected(input: Buffer, env: Record<string, string> = {}) {
+      receive(A, archive('A'));
+      const before = current();
+      const r = receive(B, input, { UTILS_MAX_UNPACKED: String(1024 * 1024), ...env });
+      expect(r.status, String(r.stderr)).toBe(4);
+      expect(current()).toBe(before);
+      expect(served()).toBe('A');
+      expect(releases()).toHaveLength(1);
+      expect(leftovers()).toEqual([]);
+      return String(r.stderr);
+    }
+
+    it('обычный файл «pad/», в данных которого спрятан заголовок большого файла, — код 4', () => {
+      // tarfile видит pad/ как файл в 512 байт и пропускает их; GNU tar и bsdtar видят каталог и читают
+      // из этих байт заголовок big.bin на 4 МиБ, которого проверка никогда не видела.
+      const input = rawArchive(`raw = SITE + member('pad/', hdr('big.bin', 4 << 20)) + b'\\0' * (4 << 20) + END`);
+      expect(input.length).toBeLessThan(64 * 1024);
+      expect(rejected(input)).toContain('отклонён');
+      expect(walk(root).filter((p) => p.includes('big.bin') || p.includes('pad'))).toEqual([]);
+    });
+
+    it('битый заголовок посередине, за ним ещё члены, — код 4', () => {
+      // tarfile считает битый заголовок концом архива, GNU tar пропускает его и распаковывает дальше.
+      const input = rawArchive(`
+bad = bytearray(member('hidden.html', b'H'))
+bad[148:156] = b'0000000\\0'
+raw = SITE + bytes(bad) + member('after.html', b'A') + END`);
+      expect(rejected(input)).toContain('отклонён');
+    });
+
+    it('битый последний заголовок, за ним только нули, — код 4', () => {
+      const input = rawArchive(`
+bad = bytearray(member('hidden.html', b'H'))
+bad[148:156] = b'0000000\\0'
+raw = SITE + bytes(bad) + END`);
+      expect(rejected(input)).toContain('отклонён');
+    });
+
+    for (const [what, raw] of [
+      ['сразу после блоков конца', `SITE + END + b'garbage'`],
+      ['после полной записи нулей', `SITE + b'\\0' * 10240 + b'\\1'`],
+    ]) {
+      it(`мусор ${what} — код 4`, () => {
+        expect(rejected(rawArchive(`raw = ${raw}`))).toContain('после конца архива');
+      });
+    }
+
+    it('архив обрывается посреди данных члена — код 4', () => {
+      expect(rejected(rawArchive(`raw = SITE + hdr('cut.bin', 4096) + b'\\0' * 1000`))).toContain('отклонён');
+    });
+
+    it('каталог с ненулевым размером — код 4', () => {
+      expect(rejected(rawArchive(`raw = SITE + hdr('d', 512, tarfile.DIRTYPE) + b'\\0' * 512 + END`))).toContain('отклонён');
+    });
+
+    it('нули после конца архива допустимы', () => {
+      expect(receive(A, rawArchive(`raw = SITE + END + b'\\0' * 100000`)).status).toBe(0);
+      expect(served()).toBe('X');
+    });
+
+    it('распаковка дольше UTILS_EXTRACT_TIMEOUT — код 4 по сроку, без остатков, замок свободен', () => {
+      // 2000 файлов на глубине 2000 каталогов: каждый член проходит весь путь, это заведомо дольше секунды.
+      const input = rawArchive(`
+deep = 'a/' * 2000
+parts = [SITE]
+for i in range(2000):
+    ti = tarfile.TarInfo(deep + 'f%d' % i); ti.size = 0
+    parts.append(ti.tobuf(tarfile.PAX_FORMAT, 'utf-8', 'surrogateescape'))
+raw = b''.join(parts) + END`);
+      const started = Date.now();
+      const stderr = rejected(input, { UTILS_EXTRACT_TIMEOUT: '1', UTILS_MAX_UNPACKED: String(100 * 1024 * 1024) });
+      expect(stderr).toContain('распаковка не завершилась за 1 с');
+      expect(Date.now() - started).toBeLessThan(15_000);
+      expect(receive(B, archive('B')).status).toBe(0);
+    }, 30_000);
+
+    it('нецелый UTILS_EXTRACT_TIMEOUT — код 2', () => {
+      expect(receive(A, archive('A'), { UTILS_EXTRACT_TIMEOUT: '1.5' }).status).toBe(2);
+    });
+  });
+
+  describe('настоящие архивы tar выкладываются как есть', () => {
+    const version = String(spawnSync('tar', ['--version']).stdout);
+    const gnu = version.includes('GNU tar');
+    // Имена форматов у GNU tar и bsdtar различаются; без флага — формат по умолчанию.
+    const formats: [string, string[], boolean][] = [
+      ['по умолчанию', [], true],
+      ['ustar', ['--format=ustar'], false],
+      ['pax', ['--format=pax'], true],
+      [gnu ? 'gnu' : 'gnutar', [gnu ? '--format=gnu' : '--format=gnutar'], true],
+    ];
+    for (const [fmt, flags, long] of formats) {
+      for (const style of ['./-имена', 'имена без ./'] as const) {
+        it(`${version.split('\n')[0].split(' ').slice(0, 2).join(' ')}, формат ${fmt}, ${style}: код 0, дерево совпадает`, () => {
+          const dir = distLike(long);
+          const what = style === './-имена' ? ['.'] : readdirSync(dir);
+          const t = spawnSync('tar', [...flags, '-czf', '-', '-C', dir, ...what], {
+            env: { ...process.env, COPYFILE_DISABLE: '1' },
+            maxBuffer: 1 << 26,
+          });
+          expect(t.status, String(t.stderr)).toBe(0);
+          const r = receive(A, t.stdout);
+          expect(r.status, String(r.stderr)).toBe(0);
+          const rel = join(root, current());
+          expect(walk(rel).filter((p) => p !== 'release.txt')).toEqual(walk(dir));
+          for (const p of walk(dir).filter((x) => !x.endsWith('/'))) {
+            expect(readFileSync(join(rel, p)).equals(readFileSync(join(dir, p))), p).toBe(true);
+          }
+          expect(leftovers()).toEqual([]);
+        });
+      }
     }
   });
 
