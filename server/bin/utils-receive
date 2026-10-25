@@ -9,6 +9,8 @@
 # 5 — в сборке нет index.html, en/index.html или 404.html; 6 — другая выкладка уже идёт (занят замок);
 # 7 — загрузка не завершилась за UTILS_UPLOAD_TIMEOUT секунд (по умолчанию 300): замок не держится вечно.
 set -euo pipefail
+# Рабочий каталог вызывающего может быть недоступен (runuser из /root): GNU find тогда падает.
+cd /
 
 ROOT=${UTILS_ROOT:-/srv/utils/site}
 MAX=${UTILS_MAX_BYTES:-52428800}
