@@ -1,0 +1,180 @@
+---
+// Слово на флажках табло: каждая буква на своей плитке. Плитки — оформление (aria-hidden),
+// читалка и поиск видят обычный текст в скрытом span. Размеры — в единицах компа мира (--u).
+interface Props {
+  text: string;
+  /** head — шапка карты, label — подпись табло, name — имя вкладки, desc — что она показывает, unit — частота. */
+  kind: 'head' | 'label' | 'name' | 'desc' | 'unit';
+}
+const { text, kind } = Astro.props;
+const chars = [...text];
+---
+
+<span class:list={['flaps', `flaps-${kind}`]}>
+  <span class="oc-hidden">{text}</span>
+  <span class="flaps-cells" aria-hidden="true">
+    {chars.map((c) => (c === ' ' ? <span class="flap-gap" /> : <span class="flap">{c}</span>))}
+  </span>
+</span>
+
+<style>
+  .flaps-cells {
+    display: inline-flex;
+  }
+  .flap,
+  .flap-gap {
+    flex: none;
+  }
+  .flap {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    background: var(--flap);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-weight: 600;
+    line-height: 1;
+  }
+  /* Линия раскола флажка. */
+  .flap::after {
+    content: '';
+    position: absolute;
+    inset: 50% 0 auto;
+    height: 1px;
+    background: rgb(0 0 0 / 0.4);
+  }
+
+  .flaps-head .flaps-cells {
+    gap: calc(5 * var(--u));
+  }
+  .flaps-head .flap {
+    width: calc(23 * var(--u));
+    height: calc(36 * var(--u));
+    border-radius: calc(3 * var(--u));
+    background: #34373b;
+    font-size: calc(27 * var(--u));
+  }
+  .flaps-head .flap-gap {
+    width: calc(13 * var(--u));
+  }
+
+  /* Подписи табло: мелкие бледные флажки; ширину и кегль можно сузить переменными (температура). */
+  .flaps-label .flaps-cells {
+    gap: calc(2 * var(--u));
+  }
+  .flaps-label .flap {
+    width: var(--label-w, calc(10.4 * var(--u)));
+    height: calc(20 * var(--u));
+    border-radius: calc(2 * var(--u));
+    background: var(--flap-faint);
+    color: #d4cfc4;
+    font-size: var(--label-fs, calc(16 * var(--u)));
+  }
+  .flaps-label .flap::after {
+    background: rgb(0 0 0 / 0.25);
+  }
+  .flaps-label .flap-gap {
+    width: calc(8 * var(--u));
+  }
+
+  .flaps-name .flaps-cells {
+    gap: calc(5 * var(--u));
+    padding: calc(3 * var(--u));
+    border-radius: calc(5 * var(--u));
+    background: rgb(0 0 0 / 0.14);
+  }
+  .flaps-name .flap {
+    width: calc(20.5 * var(--u));
+    height: calc(34 * var(--u));
+    border-radius: calc(3 * var(--u));
+    background: #34363a;
+    font-weight: 700;
+    font-size: calc(25 * var(--u));
+  }
+  .flaps-name .flap-gap {
+    width: calc(20.5 * var(--u));
+  }
+
+  .flaps-desc .flaps-cells {
+    gap: calc(1 * var(--u));
+  }
+  .flaps-desc .flap,
+  .flaps-desc .flap-gap {
+    width: calc(13.2 * var(--u));
+    height: calc(30 * var(--u));
+  }
+  .flaps-desc .flap {
+    border-radius: calc(2 * var(--u));
+    background: #26292d;
+    color: #ebe6dc;
+    font-weight: 500;
+    font-size: calc(21 * var(--u));
+  }
+  .flaps-desc .flap::after {
+    background: rgb(0 0 0 / 0.22);
+  }
+
+  .flaps-unit .flaps-cells {
+    gap: calc(2 * var(--u));
+  }
+  .flaps-unit .flap {
+    width: calc(13 * var(--u));
+    height: calc(22 * var(--u));
+    border-radius: calc(2 * var(--u));
+    background: #303236;
+    font-size: calc(17 * var(--u));
+  }
+  .flaps-unit .flap-gap {
+    width: calc(8 * var(--u));
+  }
+
+  /* Телефон: флажки в пикселях, чтобы буквы оставались читаемыми. */
+  @media (max-width: 63.99rem) {
+    .flaps-head .flaps-cells {
+      gap: 3px;
+    }
+    .flaps-head .flap {
+      width: 17px;
+      height: 26px;
+      font-size: 19px;
+    }
+    .flaps-head .flap-gap {
+      width: 8px;
+    }
+    .flaps-label .flaps-cells {
+      gap: 1px;
+    }
+    .flaps-label .flap {
+      width: 8.4px;
+      height: 16px;
+      font-size: 12px;
+    }
+    .flaps-label .flap-gap {
+      width: 6px;
+    }
+    .flaps-name .flaps-cells {
+      gap: 3px;
+      padding: 2px;
+    }
+    .flaps-name .flap,
+    .flaps-name .flap-gap {
+      width: 16px;
+      height: 28px;
+      font-size: 18px;
+    }
+    .flaps-desc .flap,
+    .flaps-desc .flap-gap {
+      width: 9.4px;
+      height: 24px;
+      font-size: 14px;
+    }
+    .flaps-unit .flap {
+      width: 10px;
+      height: 18px;
+      font-size: 13px;
+    }
+    .flaps-unit .flap-gap {
+      width: 5px;
+    }
+  }
+</style>

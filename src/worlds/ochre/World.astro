@@ -1,12 +1,29 @@
 ---
-// Мир-заглушка продукта: значения оболочки под data-world, название, слоган, скачивание, лицензия.
-// Акцент у каждой заглушки свой: e2e проверяет, что стили миров не протекают на чужие страницы.
+// Мир Ochre: вокзальный зал под табло. Сверху корпус табло: иконка, имя, строка, скачивание и
+// живая (демо) карта кристалла; ниже — табло отправлений: что показывает каждая вкладка;
+// внизу — лёгкое, нативное, приватное. Цвет — только нагрев (палитра приложения), горчица — только кнопка.
+import '@fontsource/barlow-semi-condensed/700.css';
+import '@fontsource/barlow-semi-condensed/800.css';
+import '@fontsource/commissioner/400.css';
+import '@fontsource/commissioner/500.css';
+import '@fontsource/commissioner/600.css';
+import '@fontsource/commissioner/700.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/ibm-plex-mono/600.css';
+import '@fontsource/ibm-plex-mono/700.css';
+import { Image } from 'astro:assets';
 import type { Lang } from '../../lib/schema';
 import type { ProductView } from '../../lib/products';
 import { formatSize } from '../../lib/products';
-import { Image } from 'astro:assets';
-import { productIcon } from '../../lib/icons';
 import { t } from '../../i18n';
+import icon from '../../../assets/plates/ochre-icon.png';
+import shotPanel from '../../assets/products/ochre/hero.jpg';
+import shotCpu from '../../assets/products/ochre/tab-cpu.jpg';
+import shotSensors from '../../assets/products/ochre/tab-sensors.jpg';
+import menubar from '../../assets/products/ochre/menubar-light.png';
+import Flaps from './Flaps.astro';
+import { DEMO, gpuLit, heatColor, tileInk } from './board';
+import { OCHRE_COPY, type Tab } from './copy';
 
 interface Props {
   lang: Lang;
@@ -14,49 +31,1330 @@ interface Props {
 }
 const { lang, product } = Astro.props;
 const d = t(lang);
+const c = OCHRE_COPY[lang];
 const r = product.release;
-const icon = productIcon(product);
+
+/** «Super 6 cores» → ['Super', '6 cores']: имя кластера и счёт ядер стоят на табло отдельными словами. */
+const split = (label: string) => {
+  const i = label.indexOf(' ');
+  return [label.slice(0, i), label.slice(i + 1)].map((w) => w.toUpperCase());
+};
+const tile = (load: number) => ({
+  value: String(load),
+  style: heatColor(load) ? `--heat: ${heatColor(load)}` : undefined,
+  ink: tileInk(load),
+});
+const superTiles = DEMO.superLoads.map(tile);
+const performanceTiles = DEMO.performanceLoads.map(tile);
+const lit = gpuLit(DEMO.gpuUtilization, DEMO.gpuCores);
+const gpuHeat = heatColor(DEMO.gpuUtilization);
+const temp = [...`${DEMO.cpuCelsius}°`];
+
+const SHOTS = [
+  { key: 'panel', src: shotPanel, widths: [700, 1360] },
+  { key: 'cpu', src: shotCpu, widths: [340, 680] },
+  { key: 'sensors', src: shotSensors, widths: [340, 680] },
+] as const;
+
+const TABS: Tab[] = ['overview', 'cpu', 'memory', 'network', 'disk'];
+const PICTO: Record<Tab, string> = {
+  overview:
+    'M4 4h2.6v2.6H4zM9.1 4h2.6v2.6H9.1zM14.2 4h2.6v2.6h-2.6zM19.3 4H21.9v2.6h-2.6zM4 9.1h2.6v2.6H4zM9.1 9.1h2.6v2.6H9.1zM14.2 9.1h2.6v2.6h-2.6zM19.3 9.1h2.6v2.6h-2.6zM4 14.2h2.6v2.6H4zM9.1 14.2h2.6v2.6H9.1zM14.2 14.2h2.6v2.6h-2.6zM19.3 14.2h2.6v2.6h-2.6zM4 19.3h2.6v2.6H4zM9.1 19.3h2.6v2.6H9.1zM14.2 19.3h2.6v2.6h-2.6zM19.3 19.3h2.6v2.6h-2.6z',
+  cpu: 'M7 6.5h10a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V7a.5.5 0 0 1 .5-.5ZM9.5 3v3.5M12 3v3.5M14.5 3v3.5M9.5 17.5V21M12 17.5V21M14.5 17.5V21M3 9.5h3.5M3 12h3.5M3 14.5h3.5M17.5 9.5H21M17.5 12H21M17.5 14.5H21',
+  memory: 'M3 7.5h18v8H3zM6 10.5v2M9 10.5v2M12 10.5v2M15 10.5v2M18 10.5v2M5 15.5v2M19 15.5v2',
+  network: 'M3 9.5a13 13 0 0 1 18 0M6 13a8.5 8.5 0 0 1 12 0M9 16.5a4 4 0 0 1 6 0M12 20h0',
+  disk: 'M6 4.5h12l2.5 9v5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-5zM3.5 13.5h17M16.5 16.5h0',
+};
+const FACT_PICTO = [
+  // Лист: лёгкость.
+  'M20 4C10 4 5 9 5 16v4M5 20c9 0 15-5 15-16M5 20 14 11',
+  // Ракета: нативное, без прослоек.
+  'M14.5 4.5c2.5-1 4.5-1 5.5-.5.5 1 .5 3-.5 5.5L13 16l-5-5zM8 11l-3.5.5L3 14l4 .5M13 16l-.5 3.5L10 21l-.5-4M15.5 8.5h0',
+  // Щит с галочкой: приватное.
+  'M12 3 4.5 6v5.5c0 4.5 3 8 7.5 9.5 4.5-1.5 7.5-5 7.5-9.5V6zM8.5 12l2.5 2.5 4.5-5',
+];
 ---
 
-<section class="world">
-  <Image src={icon} alt="" width={128} height={128} />
-  <h1>{product.name}</h1>
-  <p>{product.tagline[lang]}</p>
-  {
-    r.status === 'released' ? (
-      <p class="dl" data-download>
-        <a class="download" href={r.url}>{d.download}</a>
-        <span>
-          {r.version} · {formatSize(r.size, lang)} · {d.requires(product.requires.macos)}
-        </span>
-      </p>
-    ) : (
-      <p class="soon">{d.comingSoon}</p>
-    )
-  }
-  <p>{d.license}: {product.license}</p>
-  <p><a href={`https://github.com/${product.repo}`}>{d.source}</a></p>
-</section>
+<div class="oc">
+  <section class="oc-board" aria-labelledby="oc-title">
+    <div class="oc-hero">
+      <div class="oc-head">
+        <Image class="oc-icon" src={icon} alt="" width={144} height={144} densities={[1, 2]} loading="eager" />
+        <div class="oc-names">
+          <h1 id="oc-title" class="oc-title">{product.name}</h1>
+          <p class="oc-line">{product.tagline[lang]}</p>
+        </div>
+      </div>
+      <p class="oc-lede">{c.lede}</p>
+      {
+        r.status === 'released' ? (
+          <div class="oc-dl" data-download>
+            <a class="oc-download" href={r.url}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 3.5v12M6.5 10l5.5 5.5 5.5-5.5M4.5 20h15" />
+              </svg>
+              <span>{c.download}</span>
+            </a>
+            <p class="oc-meta">
+              <span>v{r.version} · {formatSize(r.size, lang)}</span>
+              <span>{d.requires(product.requires.macos)} · {product.license}</span>
+            </p>
+          </div>
+        ) : (
+          <div class="oc-dl">
+            <p class="oc-soon">{d.comingSoon}</p>
+            <p class="oc-meta">
+              <span>{d.requires(product.requires.macos)} · {product.license}</span>
+            </p>
+          </div>
+        )
+      }
+    </div>
+
+    <figure class="oc-die">
+      <figcaption class="oc-hidden">{c.demoCaption}</figcaption>
+      <div class="oc-die-head">
+        <Flaps kind="head" text={DEMO.chip.toUpperCase()} />
+        <p class="oc-demo">
+          {c.demo}
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <circle cx="8" cy="8" r="6.25" />
+            <path d="M8 7.2v4M8 4.8v.1" />
+          </svg>
+        </p>
+      </div>
+      <div class="oc-die-map" aria-hidden="true">
+        <div class="oc-cluster oc-super">
+          <p class="oc-label">{split(c.superLabel).map((w) => <Flaps kind="label" text={w} />)}</p>
+          <ol class="oc-tiles">
+            {superTiles.map((s) => <li class:list={['oc-tile', `ink-${s.ink}`]} style={s.style} data-load={s.value}><span>{s.value}</span></li>)}
+          </ol>
+        </div>
+        <div class="oc-temp">
+          <p class="oc-label"><Flaps kind="label" text={c.tempLabel.toUpperCase()} /></p>
+          <ol class="oc-tiles">
+            {temp.map((ch) => <li class="oc-tile"><span>{ch}</span></li>)}
+          </ol>
+        </div>
+        <div class="oc-cluster oc-perf">
+          <p class="oc-label">{split(c.performanceLabel).map((w) => <Flaps kind="label" text={w} />)}</p>
+          <ol class="oc-tiles">
+            {performanceTiles.map((s) => <li class:list={['oc-tile', `ink-${s.ink}`]} style={s.style} data-load={s.value}><span>{s.value}</span></li>)}
+          </ol>
+        </div>
+        <div class="oc-gpu">
+          <p class="oc-label">
+            {split(c.gpuLabel).map((w) => <Flaps kind="label" text={w} />)}
+            <span class="oc-gpu-pct">{DEMO.gpuUtilization}%</span>
+          </p>
+          <ol class="oc-bars" style={gpuHeat ? `--heat: ${gpuHeat}` : undefined} data-load={DEMO.gpuUtilization}>
+            {Array.from({ length: DEMO.gpuCores }, (_, i) => <li class:list={{ lit: i < lit }} />)}
+          </ol>
+        </div>
+      </div>
+    </figure>
+  </section>
+
+  <section class="oc-shows" aria-labelledby="oc-shows-title">
+    <header class="oc-shows-head">
+      <h2 id="oc-shows-title" class="oc-caps">{c.showsHead}</h2>
+      <p class="oc-caps oc-shows-sub">{c.showsSub}</p>
+    </header>
+    <ul class="oc-rows">
+      {
+        TABS.map((tab) => (
+          <li class="oc-row">
+            <div class="oc-row-name">
+              <svg class="oc-picto" viewBox="0 0 25 25" aria-hidden="true" focusable="false">
+                <path d={PICTO[tab]} />
+              </svg>
+              <Flaps kind="name" text={c.tabs[tab].name.toUpperCase()} />
+            </div>
+            <div class="oc-row-what">
+              <Flaps kind="desc" text={c.tabs[tab].what} />
+              <span class="oc-row-every" title={c.refresh}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v3.5h-3.5" />
+                </svg>
+                <Flaps kind="unit" text={c.every.toUpperCase()} />
+              </span>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="oc-cadence">{c.cadence}</p>
+  </section>
+
+  <ul class="oc-facts">
+    {
+      c.facts.map((f, i) => (
+        <li class="oc-fact">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d={FACT_PICTO[i]} />
+          </svg>
+          <p>
+            <strong>{f.title}</strong>
+            <span>{f.text}</span>
+          </p>
+        </li>
+      ))
+    }
+  </ul>
+
+  <section class="oc-sec oc-app" aria-labelledby="oc-app-title">
+    <header class="oc-sec-head">
+      <h2 id="oc-app-title" class="oc-caps">{c.appHead}</h2>
+      <p class="oc-caps oc-sub">{c.appSub}</p>
+    </header>
+    <div class="oc-shots">
+      {
+        SHOTS.map((shot) => (
+          <figure class:list={['oc-shot', `oc-shot-${shot.key}`]}>
+            <Image
+              src={shot.src}
+              alt={c.shots[shot.key].alt}
+              widths={[...shot.widths]}
+              sizes={shot.key === 'panel' ? '(min-width: 64rem) 50vw, 100vw' : '(min-width: 64rem) 20vw, 50vw'}
+            />
+            <figcaption>
+              <Flaps kind="label" text={c.shots[shot.key].title.toUpperCase()} />
+              <span>{c.shots[shot.key].text}</span>
+            </figcaption>
+          </figure>
+        ))
+      }
+    </div>
+    {c.uiNote && <p class="oc-note">{c.uiNote}</p>}
+  </section>
+
+  <section class="oc-sec oc-more" aria-labelledby="oc-more-title">
+    <header class="oc-sec-head">
+      <h2 id="oc-more-title" class="oc-caps">{c.moreHead}</h2>
+    </header>
+    <ul class="oc-more-list">
+      {
+        c.more.map((m, i) => (
+          <li>
+            <h3><Flaps kind="label" text={m.title.toUpperCase()} /></h3>
+            <p>{m.text}</p>
+            {i === 0 && (
+              <span class="oc-menubar">
+                <Image src={menubar} alt={c.menubarAlt} width={270} densities={[1, 2]} />
+              </span>
+            )}
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="oc-sec oc-install" aria-labelledby="oc-install-title">
+    <header class="oc-sec-head">
+      <h2 id="oc-install-title" class="oc-caps">{c.installHead}</h2>
+    </header>
+    <div class="oc-install-body">
+      <ol class="oc-steps">
+        {
+          c.steps.map((step, i) => (
+            <li>
+              <span class="oc-step-num" aria-hidden="true">{i + 1}</span>
+              <span>{step}</span>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="oc-install-side">
+        {
+          r.status === 'released' ? (
+            <a class="oc-download" href={r.url}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 3.5v12M6.5 10l5.5 5.5 5.5-5.5M4.5 20h15" />
+              </svg>
+              <span>{c.download}</span>
+            </a>
+          ) : (
+            <p class="oc-soon">{d.comingSoon}</p>
+          )
+        }
+        <p class="oc-small">{c.permissions}</p>
+        <p class="oc-small">{d.requires(product.requires.macos)} · {c.platforms}</p>
+        <p class="oc-small">
+          <a class="oc-source" href={`https://github.com/${product.repo}`}>{c.source}</a> · {d.license}: {product.license}
+        </p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  import { startBoard } from './motion';
+  const map = document.querySelector<HTMLElement>('.oc-die-map');
+  if (map) startBoard(map);
+</script>
 
 <style is:global>
-  :root[data-world="ochre"] {
-    --shell-ink: #1c1c1e;
-    --shell-ground: #f5f5f7;
-    --shell-accent: #8a5a00;
-    --shell-font: system-ui, sans-serif;
+  :root[data-world='ochre'] {
+    --shell-ink: #ece7da;
+    --shell-ground: #15171a;
+    --shell-accent: #dfac2e;
+    --shell-font: 'Commissioner', system-ui, sans-serif;
+
+    /* Единица компа: 1/1536 ширины на десктопе. */
+    --u: calc(100vw / 1536);
+    --ground: #15171a;
+    --housing: #1d1f22;
+    /* Свет на корпусе табло падает слева сверху. */
+    --housing-light: linear-gradient(160deg, #232629 0%, #1d1f22 45%, #191b1e 100%);
+    --pane: #1c1f22;
+    --flap: #2c2e32;
+    --flap-faint: #24272b;
+    --row: #202327;
+    --ink: #ece7da;
+    --ink-dim: #a9a49a;
+    --ink-faint: #8e8b85;
+    --ink-warm: #1a1b1d;
+    --mustard: #dfac2e;
+    --display: 'Barlow Semi Condensed', 'Commissioner', sans-serif;
+    --text: 'Commissioner', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  :root[data-world='ochre'] body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--text);
+    font-size: calc(18 * var(--u));
+    -webkit-font-smoothing: antialiased;
+  }
+  :root[data-world='ochre'] ::selection {
+    background: var(--mustard);
+    color: var(--ink-warm);
+  }
+  /* Без веса селектора: цвет ссылок мира не должен перебивать кнопку. */
+  :where(:root[data-world='ochre']) a {
+    color: inherit;
+  }
+  :root[data-world='ochre'] :focus-visible {
+    outline: max(calc(2 * var(--u)), 2px) solid var(--mustard);
+    outline-offset: calc(4 * var(--u));
+  }
+  :root[data-world='ochre'] .oc-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Верхняя строка: «← Все утилиты» слева, RU EN справа. */
+  :root[data-world='ochre'] .topbar {
+    align-items: center;
+    height: calc(28 * var(--u));
+    padding: calc(22 * var(--u)) calc(78 * var(--u)) 0 calc(79 * var(--u));
+  }
+  :root[data-world='ochre'] .hub-link {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(12 * var(--u));
+    color: var(--ink-dim);
+    font-size: calc(17 * var(--u));
+    text-decoration: none;
+  }
+  :root[data-world='ochre'] .hub-link::before {
+    content: '';
+    width: calc(19 * var(--u));
+    height: calc(12 * var(--u));
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 12'%3E%3Cpath d='M18 6H1.5M6.5 1 1.5 6l5 5' fill='none' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+  :root[data-world='ochre'] .hub-link:hover {
+    color: var(--ink);
+  }
+  :root[data-world='ochre'] .lang-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(24 * var(--u));
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: calc(17.5 * var(--u));
+    line-height: calc(28 * var(--u));
+    letter-spacing: 0.06em;
+    color: var(--ink-dim);
+  }
+  :root[data-world='ochre'] .lang-switch a {
+    color: inherit;
+    text-decoration: none;
+  }
+  :root[data-world='ochre'] .lang-switch a:hover {
+    color: var(--ink);
+  }
+  :root[data-world='ochre'] .lang-sep {
+    display: none;
+  }
+  /* Текущий язык — на флажках с горчичной кромкой. */
+  :root[data-world='ochre'] .lang-current {
+    padding-left: 0.15em;
+    margin-right: -0.15em;
+    color: var(--mustard);
+    background:
+      linear-gradient(var(--mustard), var(--mustard)) 0 100% / 100% 2px no-repeat,
+      repeating-linear-gradient(90deg, #22252a 0 calc(0.9em - 2px), transparent calc(0.9em - 2px) 0.9em);
+  }
+
+  :root[data-world='ochre'] .footer {
+    margin: calc(40 * var(--u)) calc(74 * var(--u)) 0;
+    padding: calc(22 * var(--u)) 0 calc(30 * var(--u));
+    border-top: 1px solid #25282b;
+    color: var(--ink-faint);
+    font-size: calc(15 * var(--u));
+  }
+  :root[data-world='ochre'] .footer a {
+    color: inherit;
+    text-decoration: none;
+  }
+  :root[data-world='ochre'] .footer a:hover {
+    color: var(--ink);
+  }
+  /* Телефон и узкий планшет: одна колонка, своя единица. */
+  @media (max-width: 63.99rem) {
+    :root[data-world='ochre'] {
+      --u: calc(100vw / 620);
+    }
+    :root[data-world='ochre'] body {
+      font-size: 16px;
+    }
+    :root[data-world='ochre'] .topbar {
+      height: auto;
+      padding: 16px 16px 0;
+    }
+    :root[data-world='ochre'] .hub-link,
+    :root[data-world='ochre'] .lang-switch {
+      font-size: 15px;
+    }
+    :root[data-world='ochre'] .hub-link::before {
+      width: 16px;
+      height: 10px;
+    }
+    :root[data-world='ochre'] .footer {
+      flex-direction: column;
+      align-items: flex-start;
+      margin: 40px 16px 0;
+      padding: 20px 0 28px;
+      font-size: 14px;
+    }
   }
 </style>
 
 <style>
-  .dl {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.5rem 1rem;
+  .oc {
+    padding: calc(18 * var(--u)) calc(62 * var(--u)) 0 calc(65 * var(--u));
   }
-  .world {
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
+
+  /* Корпус табло. */
+  .oc-board {
+    display: grid;
+    grid-template-columns: calc(560 * var(--u)) calc(744 * var(--u));
+    justify-content: space-between;
+    height: calc(423 * var(--u));
+    padding: calc(21 * var(--u)) calc(20 * var(--u)) 0 calc(41 * var(--u));
+    box-sizing: border-box;
+    border-radius: calc(22 * var(--u));
+    background: var(--housing-light);
+    box-shadow:
+      inset 0 1px 0 #2b2d30,
+      0 0 0 1px #121416,
+      0 calc(18 * var(--u)) calc(40 * var(--u)) rgb(0 0 0 / 0.35);
+  }
+
+  .oc-hero {
+    padding-top: calc(21 * var(--u));
+  }
+  .oc-head {
+    display: flex;
+    gap: calc(28 * var(--u));
+  }
+  /* Иконка в макете — 116 px в коробке 144: поля сохраняют ритм строки с именем. */
+  .oc-icon {
+    flex: none;
+    width: calc(116 * var(--u));
+    height: calc(116 * var(--u));
+    margin: calc(2 * var(--u)) calc(14 * var(--u)) calc(26 * var(--u));
+  }
+  .oc-names {
+    padding-top: calc(20 * var(--u));
+  }
+  .oc-title {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: calc(109 * var(--u));
+    line-height: 1;
+    text-transform: uppercase;
+    color: #f3eade;
+    text-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) rgb(0 0 0 / 0.45);
+    text-box: trim-both cap alphabetic;
+  }
+  .oc-line {
+    margin: calc(23 * var(--u)) 0 0;
+    max-width: calc(364 * var(--u));
+    font-weight: 500;
+    font-size: calc(27 * var(--u));
+    line-height: calc(33 * var(--u));
+    color: #d6d0c5;
+    text-wrap: balance;
+    text-box: trim-both cap alphabetic;
+  }
+  .oc-lede {
+    margin: calc(29 * var(--u)) 0 0;
+    max-width: calc(530 * var(--u));
+    font-size: calc(20 * var(--u));
+    line-height: calc(27 * var(--u));
+    color: var(--ink-dim);
+    text-box: trim-both cap alphabetic;
+  }
+  .oc-dl {
+    display: flex;
+    align-items: center;
+    gap: calc(22 * var(--u));
+    margin-top: calc(30 * var(--u));
+  }
+  .oc-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(14 * var(--u));
+    width: calc(328 * var(--u));
+    height: calc(70 * var(--u));
+    border-radius: calc(9 * var(--u));
+    background: var(--mustard);
+    color: var(--ink-warm);
+    font-weight: 700;
+    font-size: calc(22 * var(--u));
+    text-decoration: none;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 calc(6 * var(--u)) calc(18 * var(--u)) rgb(0 0 0 / 0.3);
+  }
+  .oc-download svg {
+    width: calc(26 * var(--u));
+    height: calc(26 * var(--u));
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+  }
+  .oc-download:hover {
+    background: #e8b83c;
+  }
+  .oc-soon {
+    margin: 0;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: calc(20 * var(--u));
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .oc-meta {
+    display: flex;
+    flex-direction: column;
+    gap: calc(6 * var(--u));
+    margin: 0;
+    font-size: calc(16 * var(--u));
+    line-height: calc(16 * var(--u));
+    color: var(--ink-dim);
+  }
+
+  /* Карта кристалла: графитовая панель в корпусе. */
+  .oc-die {
+    position: relative;
+    height: calc(377 * var(--u));
+    margin: 0;
+    padding: 0 calc(22 * var(--u)) 0 calc(20 * var(--u));
+    box-sizing: border-box;
+    border-radius: calc(14 * var(--u));
+    background: var(--pane);
+    box-shadow:
+      inset 0 1px 0 #383b3e,
+      inset 0 -1px 0 #101215;
+  }
+  .oc-die-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: calc(65 * var(--u));
+    margin: 0 calc(-22 * var(--u)) 0 calc(-20 * var(--u));
+    padding: 0 calc(24 * var(--u)) 0 calc(17 * var(--u));
+    border-radius: calc(14 * var(--u)) calc(14 * var(--u)) 0 0;
+    /* Шапка карты — светлая полоса над телом панели, без линейки. */
+    background: #24272a;
+  }
+  .oc-demo {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(8 * var(--u));
+    margin: 0;
+    font-size: calc(14 * var(--u));
+    color: var(--ink-dim);
+  }
+  .oc-demo svg {
+    width: calc(15 * var(--u));
+    height: calc(15 * var(--u));
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.3;
+  }
+  .oc-die-map {
+    display: grid;
+    grid-template-columns: calc(487 * var(--u)) 1fr;
+    column-gap: calc(33 * var(--u));
+    padding-top: calc(11 * var(--u));
+  }
+  .oc-super {
+    border-right: 1px solid #2c2f32;
+    margin-right: calc(-17 * var(--u));
+    padding-right: calc(16 * var(--u));
+  }
+  .oc-perf,
+  .oc-gpu {
+    grid-column: 1 / -1;
+  }
+  .oc-label {
+    display: flex;
+    align-items: center;
+    gap: calc(18 * var(--u));
+    height: calc(20 * var(--u));
+    margin: 0 0 calc(9 * var(--u));
+  }
+  .oc-tiles {
+    display: flex;
+    gap: calc(6.5 * var(--u));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .oc-tile {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border-radius: calc(5 * var(--u));
+    background: var(--heat, var(--flap));
+    background-image: linear-gradient(rgb(255 255 255 / 0.06), rgb(0 0 0 / 0.08));
+    color: var(--ink);
+    font-family: var(--display);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+  /* Линия раскола флажка. */
+  .oc-tile::after {
+    content: '';
+    position: absolute;
+    inset: 50% 0 auto;
+    height: 1px;
+    background: rgb(0 0 0 / 0.45);
+  }
+  .oc-tile span {
+    position: relative;
+    z-index: 1;
+  }
+  /* Флип: плитка схлопывается к линии раскола и раскрывается с новым числом (motion.ts). */
+  .oc-tile {
+    transition: transform 130ms cubic-bezier(0.5, 0, 0.75, 0);
+  }
+  .oc-tile:not(.is-flipping) {
+    transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .oc-tile.is-flipping {
+    transform: scaleY(0.06);
+  }
+  .oc-bars li {
+    transition: background-color 260ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .oc-tile,
+    .oc-bars li {
+      transition: none;
+    }
+  }
+  .oc-tile.ink-dark {
+    color: var(--ink-warm);
+  }
+  .oc-super .oc-tile,
+  .oc-perf .oc-tile {
+    font-weight: 600;
+  }
+  .oc-super .oc-tile {
+    width: calc(75 * var(--u));
+    height: calc(66 * var(--u));
+    font-size: calc(31 * var(--u));
+  }
+  .oc-perf {
+    margin-top: calc(13 * var(--u));
+  }
+  .oc-perf .oc-tiles {
+    gap: calc(5.5 * var(--u));
+  }
+  .oc-perf .oc-tile {
+    width: calc(53.6 * var(--u));
+    height: calc(56 * var(--u));
+    font-size: calc(22 * var(--u));
+  }
+  .oc-temp {
+    --label-w: calc(8 * var(--u));
+    --label-fs: calc(13 * var(--u));
+    /* Флажки температуры выше плиток Super: не раздвигаем ими строку. */
+    margin-bottom: calc(-18 * var(--u));
+  }
+  .oc-temp .oc-tiles {
+    gap: calc(4 * var(--u));
+  }
+  .oc-temp .oc-tile {
+    width: calc(56 * var(--u));
+    height: calc(84 * var(--u));
+    font-size: calc(76 * var(--u));
+  }
+  .oc-gpu {
+    margin-top: calc(19 * var(--u));
+  }
+  .oc-gpu .oc-label {
+    justify-content: flex-start;
+  }
+  .oc-gpu-pct {
+    position: relative;
+    top: calc(10 * var(--u));
+    margin-left: auto;
+    font-size: calc(17 * var(--u));
+    color: #b9b4aa;
+  }
+  .oc-bars {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: calc(6 * var(--u));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .oc-bars li {
+    height: calc(27 * var(--u));
+    border-radius: calc(4 * var(--u));
+    background: var(--flap);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  }
+  .oc-bars li.lit {
+    background: var(--heat, var(--ink-dim));
+  }
+
+  /* Табло отправлений. */
+  .oc-shows {
+    margin: calc(33 * var(--u)) calc(14 * var(--u)) 0 calc(11 * var(--u));
+  }
+  .oc-shows-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 calc(8 * var(--u)) calc(2 * var(--u)) calc(13 * var(--u));
+    border-bottom: 1px solid #2e3134;
+  }
+  .oc-caps {
+    margin: 0;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: calc(18.5 * var(--u));
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #f0ece4;
+  }
+  .oc-shows-sub {
+    font-size: calc(17 * var(--u));
+    letter-spacing: 0.13em;
+    color: var(--ink-faint);
+  }
+  .oc-rows {
+    display: grid;
+    gap: calc(8 * var(--u));
+    margin: calc(18 * var(--u)) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .oc-row {
+    display: grid;
+    grid-template-columns: calc(410 * var(--u)) 1fr;
+    gap: calc(12 * var(--u));
+    height: calc(50 * var(--u));
+  }
+  .oc-row-name,
+  .oc-row-what {
+    display: flex;
+    align-items: center;
+    border-radius: calc(8 * var(--u));
+    background-color: var(--row);
+    /* Швы пустых флажков. */
+    background-image: repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(34.5 * var(--u)),
+      rgb(0 0 0 / 0.28) calc(34.5 * var(--u)) calc(35.5 * var(--u))
+    );
+    background-position: calc(62 * var(--u)) 0;
+    background-repeat: no-repeat;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+  }
+  .oc-row-name {
+    background-size: calc(100% - 62 * var(--u)) 100%;
+  }
+  .oc-row-what {
+    background-position: 0 0;
+    background-size: 100% 100%;
+    padding-left: calc(27 * var(--u));
+  }
+  .oc-picto {
+    flex: none;
+    width: calc(30 * var(--u));
+    height: calc(30 * var(--u));
+    margin: 0 calc(32 * var(--u)) 0 calc(17 * var(--u));
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .oc-row:first-child .oc-picto path {
+    fill: var(--ink);
+    stroke: none;
+  }
+  .oc-row-every {
+    display: flex;
+    align-items: center;
+    gap: calc(22 * var(--u));
+    height: 100%;
+    margin-left: auto;
+    padding: 0 calc(36 * var(--u)) 0 calc(28 * var(--u));
+    border-left: 2px solid transparent;
+    background: linear-gradient(var(--ink), var(--ink)) 0 50% / 2px calc(30 * var(--u)) no-repeat;
+  }
+  .oc-row-every svg {
+    width: calc(22 * var(--u));
+    height: calc(22 * var(--u));
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Лёгкое, нативное, приватное. */
+  .oc-facts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin: calc(7 * var(--u)) calc(14 * var(--u)) 0 calc(9 * var(--u));
+    padding: calc(29 * var(--u)) 0 0;
+    list-style: none;
+    border-top: 2px solid #2a2e31;
+    box-shadow: 0 -1px 0 #101214;
+  }
+  .oc-fact {
+    display: flex;
+    gap: calc(38 * var(--u));
+    padding-left: calc(4 * var(--u));
+  }
+  .oc-fact + .oc-fact {
+    border-left: 1px solid #262a2d;
+    padding-left: calc(38 * var(--u));
+  }
+  .oc-fact svg {
+    flex: none;
+    width: calc(42 * var(--u));
+    height: calc(42 * var(--u));
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .oc-fact p {
+    display: flex;
+    flex-direction: column;
+    gap: calc(12 * var(--u));
+    margin: 0;
+    font-size: calc(17.5 * var(--u));
+    line-height: calc(24 * var(--u));
+    color: var(--ink-dim);
+  }
+  .oc-fact strong {
+    font-weight: 600;
+    font-size: calc(20 * var(--u));
+    line-height: 1;
+    color: var(--ink);
+  }
+  /* Секции ниже табло: та же шапка, что у отправлений. */
+  .oc-sec {
+    margin: calc(84 * var(--u)) calc(14 * var(--u)) 0 calc(11 * var(--u));
+  }
+  .oc-sec-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 calc(8 * var(--u)) calc(2 * var(--u)) calc(13 * var(--u));
+    border-bottom: 1px solid #2e3134;
+  }
+  .oc-sub {
+    font-size: calc(17 * var(--u));
+    letter-spacing: 0.13em;
+    color: var(--ink-faint);
+  }
+  .oc-shots {
+    display: grid;
+    grid-template-columns: 2.5fr 1fr 1fr;
+    gap: calc(24 * var(--u));
+    align-items: start;
+    margin-top: calc(24 * var(--u));
+  }
+  .oc-shot {
+    margin: 0;
+  }
+  .oc-shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: calc(12 * var(--u));
+    box-shadow:
+      0 0 0 1px #2c2f33,
+      0 calc(14 * var(--u)) calc(34 * var(--u)) rgb(0 0 0 / 0.4);
+  }
+  .oc-shot figcaption {
+    display: flex;
+    flex-direction: column;
+    gap: calc(10 * var(--u));
+    margin-top: calc(18 * var(--u));
+    font-size: calc(17 * var(--u));
+    line-height: calc(24 * var(--u));
+    color: var(--ink-dim);
+  }
+  .oc-note {
+    margin: calc(26 * var(--u)) 0 0 calc(13 * var(--u));
+    font-family: var(--mono);
+    font-size: calc(16 * var(--u));
+    color: var(--ink);
+  }
+  .oc-more-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin: calc(24 * var(--u)) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .oc-more-list li {
+    padding: 0 calc(28 * var(--u)) 0 calc(13 * var(--u));
+  }
+  .oc-more-list li + li {
+    border-left: 1px solid #262a2d;
+    padding-left: calc(28 * var(--u));
+  }
+  .oc-more-list h3 {
+    margin: 0;
+    font-size: inherit;
+  }
+  .oc-more-list p {
+    margin: calc(14 * var(--u)) 0 0;
+    font-size: calc(17 * var(--u));
+    line-height: calc(25 * var(--u));
+    color: var(--ink-dim);
+  }
+  /* Скриншот значка — на светлой полосе, как в светлой строке меню (текст на нём чёрный). */
+  .oc-menubar {
+    display: inline-block;
+    margin-top: calc(18 * var(--u));
+    padding: calc(6 * var(--u)) calc(12 * var(--u));
+    border-radius: calc(6 * var(--u));
+    background: #e7e2d8;
+  }
+  .oc-menubar img {
+    display: block;
+    width: calc(270 * var(--u));
+    height: auto;
+  }
+  /* Посадка — в таком же корпусе, как табло наверху: второе скачивание стоит в мире, а не на голом фоне. */
+  .oc-install-body {
+    display: grid;
+    grid-template-columns: 1fr calc(420 * var(--u));
+    align-items: center;
+    gap: calc(60 * var(--u));
+    margin-top: calc(26 * var(--u));
+    padding: calc(36 * var(--u)) calc(40 * var(--u));
+    border-radius: calc(22 * var(--u));
+    background: var(--housing-light);
+    box-shadow:
+      inset 0 1px 0 #2b2d30,
+      0 0 0 1px #121416;
+  }
+  .oc-steps {
+    display: grid;
+    gap: calc(14 * var(--u));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: calc(20 * var(--u));
+    line-height: calc(28 * var(--u));
+  }
+  .oc-steps li {
+    display: flex;
+    align-items: center;
+    gap: calc(22 * var(--u));
+  }
+  .oc-step-num {
+    position: relative;
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: calc(46 * var(--u));
+    height: calc(52 * var(--u));
+    border-radius: calc(5 * var(--u));
+    background: var(--flap);
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: calc(30 * var(--u));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+  .oc-step-num::after {
+    content: '';
+    position: absolute;
+    inset: 50% 0 auto;
+    height: 1px;
+    background: rgb(0 0 0 / 0.45);
+  }
+  .oc-install-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(12 * var(--u));
+  }
+  .oc-install-side .oc-download {
+    margin-bottom: calc(10 * var(--u));
+  }
+  .oc-small {
+    margin: 0;
+    font-size: calc(16 * var(--u));
+    line-height: calc(23 * var(--u));
+    color: var(--ink-dim);
+  }
+  .oc-source {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: #5a5d61;
+    text-underline-offset: 0.2em;
+  }
+  .oc-source:hover {
+    text-decoration-color: var(--ink);
+  }
+  /* Подпись встаёт в зазор между строками и полосой фактов, не сдвигая полосу. */
+  .oc-cadence {
+    margin: calc(6 * var(--u)) 0 0 calc(13 * var(--u));
+    font-family: var(--mono);
+    font-size: max(calc(13 * var(--u)), 11px);
+    line-height: max(calc(15 * var(--u)), 13px);
+    color: var(--ink-faint);
+  }
+  @media (max-width: 63.99rem) {
+    .oc {
+      padding: 16px 16px 0;
+    }
+    .oc-board {
+      display: block;
+      height: auto;
+      padding: 20px 14px 14px;
+      border-radius: 18px;
+    }
+    .oc-hero {
+      padding: 0 4px;
+    }
+    /* Иконка и имя в ряд, строка — под ними на всю ширину. */
+    .oc-head {
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+    .oc-names {
+      display: contents;
+    }
+    .oc-icon {
+      width: 76px;
+      height: 76px;
+      margin: 0;
+    }
+    .oc-names {
+      padding: 0;
+    }
+    .oc-title {
+      font-size: 62px;
+    }
+    .oc-line {
+      flex-basis: 100%;
+      margin-top: 4px;
+      max-width: none;
+      font-size: 19px;
+      line-height: 25px;
+    }
+    .oc-lede {
+      margin-top: 18px;
+      max-width: none;
+      font-size: 16px;
+      line-height: 23px;
+    }
+    .oc-dl {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .oc-download {
+      width: 100%;
+      height: 54px;
+      gap: 10px;
+      border-radius: 9px;
+      font-size: 17px;
+    }
+    .oc-download svg {
+      width: 20px;
+      height: 20px;
+    }
+    .oc-meta {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px 12px;
+      font-size: 13px;
+      line-height: 18px;
+    }
+    .oc-die {
+      height: auto;
+      margin-top: 24px;
+      padding: 0 12px 16px;
+      border-radius: 12px;
+    }
+    .oc-die-head {
+      height: 50px;
+      margin: 0 -12px;
+      padding: 0 14px;
+    }
+    .oc-demo {
+      font-size: 12px;
+    }
+    .oc-demo svg {
+      width: 13px;
+      height: 13px;
+    }
+    .oc-die-map {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-top: 14px;
+    }
+    .oc-super {
+      border: 0;
+      margin: 0;
+      padding: 0;
+    }
+    .oc-temp,
+    .oc-perf,
+    .oc-gpu {
+      margin: 0;
+    }
+    .oc-perf {
+      order: 2;
+    }
+    .oc-gpu {
+      order: 3;
+    }
+    .oc-label {
+      height: 16px;
+      margin-bottom: 8px;
+    }
+    .oc-tiles,
+    .oc-perf .oc-tiles {
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .oc-super .oc-tile,
+    .oc-perf .oc-tile {
+      width: calc((100% - 5 * 4px) / 6);
+      height: 44px;
+      font-size: 19px;
+    }
+    .oc-perf .oc-tile {
+      height: 36px;
+      font-size: 15px;
+    }
+    .oc-temp .oc-tile {
+      width: 38px;
+      height: 54px;
+      font-size: 46px;
+    }
+    .oc-gpu-pct {
+      top: 0;
+      font-size: 13px;
+    }
+    .oc-bars {
+      gap: 3px;
+    }
+    .oc-bars li {
+      height: 18px;
+      border-radius: 3px;
+    }
+
+    .oc-shows,
+    .oc-sec {
+      margin: 48px 0 0;
+    }
+    .oc-shows-head,
+    .oc-sec-head {
+      flex-direction: column;
+      gap: 6px;
+      padding: 0 0 8px;
+    }
+    .oc-caps {
+      font-size: 15px;
+      letter-spacing: 0.18em;
+    }
+    .oc-shows-sub,
+    .oc-sub {
+      font-size: 12px;
+    }
+    .oc-rows {
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .oc-row {
+      position: relative;
+      grid-template-columns: 1fr;
+      gap: 4px;
+      height: auto;
+    }
+    .oc-row-name {
+      height: 46px;
+      background-position: 52px 0;
+      background-size: calc(100% - 52px) 100%;
+    }
+    .oc-row-what {
+      height: 40px;
+      padding-left: 12px;
+    }
+    .oc-picto {
+      width: 22px;
+      height: 22px;
+      margin: 0 18px 0 14px;
+    }
+    /* Частота — в правом углу строки с именем. */
+    .oc-row-every {
+      position: absolute;
+      top: 0;
+      right: 0;
+      height: 46px;
+      gap: 10px;
+      padding: 0 12px 0 14px;
+      background-size: 2px 22px;
+    }
+    .oc-row-every svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .oc-cadence {
+      margin: 12px 0 0;
+      font-size: 12px;
+      line-height: 18px;
+    }
+    .oc-facts {
+      grid-template-columns: 1fr;
+      gap: 18px;
+      margin: 28px 0 0;
+      padding-top: 24px;
+    }
+    .oc-fact,
+    .oc-fact + .oc-fact {
+      gap: 16px;
+      padding: 0;
+      border: 0;
+    }
+    .oc-fact svg {
+      width: 30px;
+      height: 30px;
+    }
+    .oc-fact p {
+      gap: 6px;
+      font-size: 15px;
+      line-height: 21px;
+    }
+    .oc-fact strong {
+      font-size: 17px;
+    }
+
+    .oc-shots {
+      grid-template-columns: 1fr 1fr;
+      gap: 24px 12px;
+      margin-top: 18px;
+    }
+    .oc-shot-panel {
+      grid-column: 1 / -1;
+    }
+    .oc-shot img {
+      border-radius: 10px;
+    }
+    .oc-shot figcaption {
+      gap: 6px;
+      margin-top: 12px;
+      font-size: 14px;
+      line-height: 20px;
+    }
+    .oc-note {
+      margin: 20px 0 0;
+      font-size: 13px;
+    }
+    .oc-more-list {
+      grid-template-columns: 1fr;
+      gap: 22px;
+      margin-top: 18px;
+    }
+    .oc-more-list li,
+    .oc-more-list li + li {
+      padding: 0;
+      border: 0;
+    }
+    .oc-more-list p {
+      margin-top: 8px;
+      font-size: 15px;
+      line-height: 22px;
+    }
+    .oc-menubar img {
+      width: 220px;
+    }
+    .oc-install-body {
+      grid-template-columns: 1fr;
+      gap: 28px;
+      margin-top: 18px;
+      padding: 22px 16px;
+      border-radius: 18px;
+    }
+    .oc-steps {
+      gap: 12px;
+      font-size: 16px;
+      line-height: 22px;
+    }
+    .oc-steps li {
+      gap: 14px;
+    }
+    .oc-step-num {
+      width: 34px;
+      height: 40px;
+      font-size: 22px;
+    }
+    .oc-install-side {
+      align-items: stretch;
+    }
+    .oc-small {
+      font-size: 14px;
+      line-height: 20px;
+    }
   }
 </style>

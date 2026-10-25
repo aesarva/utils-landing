@@ -1,0 +1,486 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T18:44:51.089Z",
+  "title": "Design System: Ochre (product world)",
+  "scope": "src/worlds/ochre; tokens under :root[data-world='ochre'] only; shell contract in root DESIGN.md",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Station Ground",
+        "tonalRamp": [
+          "#1b1e22",
+          "#32373e",
+          "#4b525d",
+          "#646e7c",
+          "#808a98",
+          "#a2a9b4",
+          "#c7cbd1",
+          "#ebedef"
+        ]
+      },
+      "housing": {
+        "role": "neutral",
+        "displayName": "Board Housing",
+        "tonalRamp": [
+          "#1c1e21",
+          "#34373d",
+          "#4d535b",
+          "#676e79",
+          "#838a95",
+          "#a4aab2",
+          "#c8cbd0",
+          "#ecedef"
+        ]
+      },
+      "pane": {
+        "role": "neutral",
+        "displayName": "Die Pane",
+        "tonalRamp": [
+          "#1c1f22",
+          "#33383e",
+          "#4c545c",
+          "#65707b",
+          "#818c97",
+          "#a3abb3",
+          "#c7ccd1",
+          "#ebedef"
+        ]
+      },
+      "flap": {
+        "role": "neutral",
+        "displayName": "Flap",
+        "tonalRamp": [
+          "#1d1e21",
+          "#35373c",
+          "#4f525a",
+          "#696e77",
+          "#858a94",
+          "#a5a9b0",
+          "#c9cbcf",
+          "#ecedee"
+        ]
+      },
+      "flap-faint": {
+        "role": "neutral",
+        "displayName": "Faint Flap",
+        "tonalRamp": [
+          "#1d1e21",
+          "#35373c",
+          "#4f525a",
+          "#696e77",
+          "#858a94",
+          "#a5a9b0",
+          "#c9cbcf",
+          "#ecedee"
+        ]
+      },
+      "row": {
+        "role": "neutral",
+        "displayName": "Departure Row",
+        "tonalRamp": [
+          "#1c1e22",
+          "#33373e",
+          "#4c535c",
+          "#656f7b",
+          "#818b98",
+          "#a3aab3",
+          "#c7cbd1",
+          "#ebedef"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Warm Off-White",
+        "tonalRamp": [
+          "#282315",
+          "#4a4026",
+          "#6f6039",
+          "#94804c",
+          "#b19d67",
+          "#c6b790",
+          "#dcd3bc",
+          "#f3f0e7"
+        ]
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Dim Ink",
+        "tonalRamp": [
+          "#211f1c",
+          "#3d3a34",
+          "#5b564d",
+          "#797367",
+          "#958f83",
+          "#b2ada4",
+          "#d0cdc8",
+          "#efeeec"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Faint Ink",
+        "tonalRamp": [
+          "#201f1d",
+          "#3a3936",
+          "#575551",
+          "#74726c",
+          "#918e88",
+          "#aeaca8",
+          "#cecdca",
+          "#eeedec"
+        ]
+      },
+      "ink-warm": {
+        "role": "neutral",
+        "displayName": "Warm Black",
+        "tonalRamp": [
+          "#1d1e20",
+          "#35373b",
+          "#505359",
+          "#6a6e76",
+          "#868a93",
+          "#a6a9af",
+          "#c9cbcf",
+          "#ecedee"
+        ]
+      },
+      "mustard": {
+        "role": "primary",
+        "displayName": "Download Mustard",
+        "tonalRamp": [
+          "#352808",
+          "#614a0f",
+          "#926e16",
+          "#c3931e",
+          "#e1b038",
+          "#e9c56d",
+          "#f1dca7",
+          "#faf3e0"
+        ]
+      },
+      "heat-amber": {
+        "role": "tertiary",
+        "displayName": "Heat Amber",
+        "tonalRamp": [
+          "#342909",
+          "#604b10",
+          "#907019",
+          "#c09521",
+          "#ddb23b",
+          "#e6c76f",
+          "#f0dda8",
+          "#faf3e1"
+        ]
+      },
+      "heat-ember": {
+        "role": "tertiary",
+        "displayName": "Heat Ember",
+        "tonalRamp": [
+          "#342409",
+          "#5f4311",
+          "#8e641a",
+          "#be8522",
+          "#dca23d",
+          "#e5bb71",
+          "#efd6a9",
+          "#faf0e1"
+        ]
+      },
+      "heat-hot": {
+        "role": "tertiary",
+        "displayName": "Heat Red",
+        "tonalRamp": [
+          "#32130c",
+          "#5b2315",
+          "#883520",
+          "#b6472a",
+          "#d46245",
+          "#df8c77",
+          "#ecb9ac",
+          "#f8e7e2"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "OCHRE brand name, the page h1. Latin only."
+      },
+      "tile-numeral": {
+        "displayName": "Tile numeral",
+        "purpose": "Core loads on heat tiles; 22u on Performance tiles."
+      },
+      "temperature-numeral": {
+        "displayName": "Temperature numeral",
+        "purpose": "CPU temperature flaps."
+      },
+      "line": {
+        "displayName": "Line",
+        "purpose": "Tagline under the title."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Lede and install steps."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Captions, facts, on-board text."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Download label."
+      },
+      "station-caps": {
+        "displayName": "Station caps",
+        "purpose": "Section heads; sub-captions at 17u +0.13em in ink-faint."
+      },
+      "flap-letter": {
+        "displayName": "Flap letter",
+        "purpose": "One character per flap; size per flap kind."
+      }
+    },
+    "heatScale": {
+      "source": "ochre MetricsCore/Presentation/HeatScale.swift via src/worlds/ochre/board.ts",
+      "stops": [
+        {
+          "below": 20,
+          "color": "cold: {colors.flap}"
+        },
+        {
+          "from": 20,
+          "to": 60,
+          "mix": [
+            "heat-amber",
+            "heat-ember"
+          ]
+        },
+        {
+          "from": 60,
+          "to": 90,
+          "mix": [
+            "heat-ember",
+            "heat-hot"
+          ]
+        },
+        {
+          "from": 90,
+          "color": "heat-hot"
+        }
+      ],
+      "numeralInk": "dark (ink-warm) for 20 <= load < 83, else light (ink)",
+      "gpuBars": "lit = max(1, round(util/100 * total)) when util > 0; all lit bars share heatColor(util), ink-dim when cold"
+    },
+    "shadows": [
+      {
+        "name": "housing",
+        "value": "inset 0 1px 0 #2b2d30, 0 0 0 1px #121416, 0 calc(18 * var(--u)) calc(40 * var(--u)) rgb(0 0 0 / 0.35)",
+        "purpose": "Board housing; install housing omits the drop."
+      },
+      {
+        "name": "pane-inset",
+        "value": "inset 0 1px 0 #383b3e, inset 0 -1px 0 #101215",
+        "purpose": "Die pane set into the housing."
+      },
+      {
+        "name": "tile",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.08)",
+        "purpose": "Core tiles and step flaps, with a 6% white to 8% black gradient."
+      },
+      {
+        "name": "action",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.25), 0 calc(6 * var(--u)) calc(18 * var(--u)) rgb(0 0 0 / 0.3)",
+        "purpose": "Download button."
+      },
+      {
+        "name": "shot",
+        "value": "0 0 0 1px #2c2f33, 0 calc(14 * var(--u)) calc(34 * var(--u)) rgb(0 0 0 / 0.4)",
+        "purpose": "App screenshots."
+      },
+      {
+        "name": "title-lift",
+        "value": "text-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) rgb(0 0 0 / 0.45)",
+        "purpose": "OCHRE title."
+      }
+    ],
+    "gradients": [
+      {
+        "name": "housing-light",
+        "value": "linear-gradient(160deg, #232629 0%, #1d1f22 45%, #191b1e 100%)",
+        "purpose": "Every housing; light from top-left."
+      }
+    ],
+    "motion": [
+      {
+        "name": "tick",
+        "value": "2000ms",
+        "purpose": "Demo board update interval (Ochre default refresh)."
+      },
+      {
+        "name": "flip-collapse",
+        "value": "transform 130ms cubic-bezier(0.5, 0, 0.75, 0) to scaleY(0.06)",
+        "purpose": "First half of a tile flip; content swaps at the midpoint."
+      },
+      {
+        "name": "flip-reopen",
+        "value": "transform 130ms cubic-bezier(0.25, 1, 0.5, 1)",
+        "purpose": "Second half; full flip 260ms as the app's FlapTile."
+      },
+      {
+        "name": "bar-fade",
+        "value": "background-color 260ms ease-out",
+        "purpose": "GPU bars lighting and heat."
+      },
+      {
+        "name": "pause",
+        "value": "IntersectionObserver + document.hidden",
+        "purpose": "No ticks off screen or in a hidden tab."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce => script never starts, transitions none",
+        "purpose": "Board stands at server-rendered demo state."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "desktop",
+        "value": ">= 64rem; --u = 100vw / 1536"
+      },
+      {
+        "name": "mobile",
+        "value": "max-width: 63.99rem; --u = 100vw / 620 with px overrides"
+      }
+    ],
+    "provenance": {
+      "appIcon": "assets/plates/ochre-icon.png (+ .json): shipped icon rendered from ochre/Resources/AppIcon.icon with ictool",
+      "screenshots": "src/assets/products/ochre/SOURCE.json: repo ochre, ref develop, commit 845c599f, path per file"
+    }
+  },
+  "components": [
+    {
+      "name": "Download",
+      "kind": "button",
+      "refersTo": "download",
+      "description": "The one mustard element: primary action with version meta beside it.",
+      "html": "<a class=\"ds-dl\" href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3.5v12M6.5 10l5.5 5.5 5.5-5.5M4.5 20h15\"/></svg><span>Download for macOS</span></a>",
+      "css": ".ds-dl{display:inline-flex;align-items:center;justify-content:center;gap:14px;width:328px;height:70px;border-radius:9px;background:#dfac2e;color:#1a1b1d;font:700 22px 'Commissioner',system-ui,sans-serif;text-decoration:none;box-shadow:inset 0 1px 0 rgb(255 255 255/.25),0 6px 18px rgb(0 0 0/.3)}.ds-dl svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2}.ds-dl:hover{background:#e8b83c}.ds-dl:focus-visible{outline:2px solid #dfac2e;outline-offset:4px}"
+    },
+    {
+      "name": "Core tiles (heat)",
+      "kind": "custom",
+      "refersTo": "core-tile-cold",
+      "description": "Split-flap core tiles coloured by heatColor(load); cold tiles stay graphite.",
+      "html": "<ol class=\"ds-tiles\"><li style=\"--heat:rgb(215 170 67)\" class=\"dark\"><span>38</span></li><li><span>12</span></li><li style=\"--heat:rgb(200 135 37)\" class=\"dark\"><span>64</span></li><li><span>8</span></li><li style=\"--heat:rgb(180 70 42)\"><span>92</span></li></ol>",
+      "css": ".ds-tiles{display:flex;gap:6.5px;margin:0;padding:12px;list-style:none;background:#1c1f22}.ds-tiles li{position:relative;display:grid;place-items:center;width:75px;height:66px;border-radius:5px;background:var(--heat,#2c2e32);background-image:linear-gradient(rgb(255 255 255/.06),rgb(0 0 0/.08));color:#ece7da;font:600 31px 'Barlow Semi Condensed',sans-serif;font-variant-numeric:tabular-nums;box-shadow:inset 0 1px 0 rgb(255 255 255/.08);transition:transform 130ms cubic-bezier(.25,1,.5,1)}.ds-tiles li.dark{color:#1a1b1d}.ds-tiles li::after{content:'';position:absolute;inset:50% 0 auto;height:1px;background:rgb(0 0 0/.45)}.ds-tiles li span{position:relative;z-index:1}.ds-tiles li:hover{transform:scaleY(.06);transition-timing-function:cubic-bezier(.5,0,.75,0)}"
+    },
+    {
+      "name": "GPU bars",
+      "kind": "custom",
+      "refersTo": "gpu-bar",
+      "description": "One bar per GPU core; lit count proportional to load, one shared heat colour.",
+      "html": "<ol class=\"ds-bars\" style=\"--heat:rgb(217 173 72)\"><li class=\"lit\"></li><li class=\"lit\"></li><li class=\"lit\"></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li></ol>",
+      "css": ".ds-bars{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin:0;padding:12px;list-style:none;background:#1c1f22}.ds-bars li{height:27px;border-radius:4px;background:#2c2e32;box-shadow:inset 0 1px 0 rgb(255 255 255/.05);transition:background-color 260ms ease-out}.ds-bars li.lit{background:var(--heat,#a9a49a)}"
+    },
+    {
+      "name": "Flaps",
+      "kind": "custom",
+      "refersTo": "departure-row",
+      "description": "Word on split flaps, one character each (name kind shown).",
+      "html": "<span class=\"ds-flaps\"><span>M</span><span>E</span><span>M</span><span>O</span><span>R</span><span>Y</span></span>",
+      "css": ".ds-flaps{display:inline-flex;gap:5px;padding:3px;border-radius:5px;background:rgb(0 0 0/.14)}.ds-flaps span{position:relative;display:inline-grid;place-items:center;width:20.5px;height:34px;border-radius:3px;background:#34363a;color:#ece7da;font:700 25px/1 'IBM Plex Mono',monospace}.ds-flaps span::after{content:'';position:absolute;inset:50% 0 auto;height:1px;background:rgb(0 0 0/.4)}"
+    },
+    {
+      "name": "Departure row",
+      "kind": "card",
+      "refersTo": "departure-row",
+      "description": "Tab row: pictogram and name flaps, then what it shows and the refresh unit.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-row-name\">CPU</div><div class=\"ds-row-what\">Every core, cluster by cluster<span class=\"ds-every\">2 SEC</span></div></div>",
+      "css": ".ds-row{display:grid;grid-template-columns:200px 1fr;gap:12px;height:50px;font:600 18px 'IBM Plex Mono',monospace;color:#ece7da;letter-spacing:.2em}.ds-row-name,.ds-row-what{display:flex;align-items:center;padding-left:20px;border-radius:8px;background-color:#202327;background-image:repeating-linear-gradient(90deg,transparent 0 34.5px,rgb(0 0 0/.28) 34.5px 35.5px);box-shadow:inset 0 1px 0 rgb(255 255 255/.03)}.ds-every{margin-left:auto;padding:0 24px;border-left:2px solid #ece7da}"
+    },
+    {
+      "name": "Board housing",
+      "kind": "card",
+      "refersTo": "board-housing",
+      "description": "Lit graphite housing with an inset die pane.",
+      "html": "<div class=\"ds-housing\"><div class=\"ds-pane\"><div class=\"ds-pane-head\">M5 PRO <small>Demo data</small></div></div></div>",
+      "css": ".ds-housing{padding:21px 20px 20px 41px;border-radius:22px;background:linear-gradient(160deg,#232629 0%,#1d1f22 45%,#191b1e 100%);box-shadow:inset 0 1px 0 #2b2d30,0 0 0 1px #121416,0 18px 40px rgb(0 0 0/.35)}.ds-pane{height:160px;border-radius:14px;background:#1c1f22;box-shadow:inset 0 1px 0 #383b3e,inset 0 -1px 0 #101215}.ds-pane-head{display:flex;justify-content:space-between;align-items:center;height:65px;padding:0 24px 0 17px;border-radius:14px 14px 0 0;background:#24272a;color:#ece7da;font:600 27px 'IBM Plex Mono',monospace}.ds-pane-head small{font:400 14px 'Commissioner',sans-serif;color:#a9a49a}"
+    },
+    {
+      "name": "Section head",
+      "kind": "nav",
+      "refersTo": "section-head",
+      "description": "Station caps head with right-aligned sub-caption over a hairline.",
+      "html": "<header class=\"ds-head\"><h2>What Ochre shows</h2><p>Live from your menu bar</p></header>",
+      "css": ".ds-head{display:flex;justify-content:space-between;align-items:baseline;padding:0 8px 2px 13px;border-bottom:1px solid #2e3134;font-family:'IBM Plex Mono',monospace;text-transform:uppercase}.ds-head h2{margin:0;font-weight:600;font-size:18.5px;letter-spacing:.25em;color:#f0ece4}.ds-head p{margin:0;font-weight:600;font-size:17px;letter-spacing:.13em;color:#8e8b85}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Station Hall",
+    "overview": "The page is a station hall under its departure board. Across the top hangs one board housing. Its left half holds the app icon, OCHRE, the line, one sentence, and the mustard download with its version, size, macOS floor and licence. Its right half is a live die-map pane: an M5 PRO head on flaps, Super and Performance cores as split-flap tiles that flip and heat with load, CPU temperature flaps, and 20 GPU bars. The pane is labelled \"Demo data\". Below the board, a departures board lists the app's tabs (Overview, CPU, Memory, Network, Disk), each row with a pictogram, a flap-lettered name, what the tab shows, and its refresh rate. After that come the lightweight, native and private strip, the real app screenshots, \"Also on board\", and an install block set in a second housing that carries the second download.\n\nEverything is graphite: matte charcoal housings lit from the top left, darker panes set into them, and flap tiles with a hairline split across the middle. Lettering is warm off-white. Colour on the board means heat and nothing else. The one exception is the download, which is mustard.",
+    "keyCharacteristics": [
+      "Graphite ground (`ground`) with charcoal board housings (22u radius, top-left light falloff) and inset panes.",
+      "Split-flap tiles everywhere data appears. Each tile has a 1px dark split line across its middle.",
+      "Barlow Semi Condensed for the brand name and the numerals on tiles. Commissioner for prose. IBM Plex Mono for every flap letter and every station caption.",
+      "Heat scale ported from the app (amber, then ember, then red). Cold tiles stay graphite.",
+      "Mustard marks the primary action only.",
+      "One unit, `--u = 100vw / 1536` on desktop and `100vw / 620` under 63.99rem, with px overrides for every text and flap size on mobile.",
+      "One motion: the demo board ticks every 2 s and changed tiles flip."
+    ],
+    "rules": [
+      {
+        "name": "The Colour Is Heat Rule",
+        "body": "On the board and the departures, chromatic colour appears only where a core, a GPU or a reading is under load, and only through `heatColor()`. Labels, rows, pictograms, section heads and the temperature flaps stay graphite and off-white.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Action Rule",
+        "body": "Mustard fills the download and nothing else on the page surface. The focus ring and the selection highlight are the only other places it appears, and both are transient interaction states.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shell Mirror Rule",
+        "body": "`--shell-ink` = `ink`, `--shell-ground` = `ground`, `--shell-accent` = `mustard`, and `--shell-font` = Commissioner.",
+        "section": "colors"
+      },
+      {
+        "name": "The Digits-Only Display Rule",
+        "body": "Barlow Semi Condensed sets only the Latin brand name and numerals. It has no Cyrillic, so any word that can be Russian goes on Plex Mono flaps or in Commissioner.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flap Letter Rule",
+        "body": "Words on the board (chip name, cluster labels, tab names, tab descriptions, refresh units, screenshot and \"on board\" titles) are set one letter per flap in Plex Mono. Prose is never set on flaps longer than a single short line.",
+        "section": "typography"
+      },
+      {
+        "name": "The Lit Housing Rule",
+        "body": "Housings always use the 160° light-falloff gradient, never a flat fill, and they are the only surfaces that drop a shadow onto the ground.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Split Line Rule",
+        "body": "Every flap and tile carries a 1px black split at 50% height (45% opacity on tiles, 22% to 40% on letter flaps). Empty flap seams on the rows are drawn as repeating 1u dark lines every 35.5u.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** size in `--u` on desktop and switch to px under 63.99rem for every text, flap and control.",
+      "**Do** colour load only through `heatColor()` and `tileInk()` from `board.ts`, and keep cold tiles on `flap`.",
+      "**Do** light a GPU bar count proportional to load (`gpuLit`), with one shared heat colour.",
+      "**Do** put words on the board on Plex Mono flaps with the visually hidden text alongside.",
+      "**Do** label demo data as demo, on the pane and in its hidden caption.",
+      "**Do** paint housings with the 160° light-falloff gradient and inset panes into them.",
+      "**Do** keep the flip at 130 + 130 ms on a 2 s tick, paused off screen and absent under reduced motion.",
+      "**Do** source every raster from the app repo with provenance (`src/assets/products/ochre/SOURCE.json`, `assets/plates/ochre-icon.png.json`)."
+    ],
+    "donts": [
+      "**Don't** use heat colours on labels, rows, pictograms, headings or any decoration.",
+      "**Don't** use mustard as a surface, text colour or marker anywhere but the download (focus ring and selection excepted).",
+      "**Don't** set Russian words in Barlow Semi Condensed.",
+      "**Don't** paint a GPU bar by its index or across a multi-colour gradient. All lit bars share the overall load's heat.",
+      "**Don't** invent claims or tab descriptions. Copy comes from the app's README (ru/en) and its tab names.",
+      "**Don't** apply hub materials (board fibre, Hub Display, ink mask, signal orange) here."
+    ]
+  }
+}
