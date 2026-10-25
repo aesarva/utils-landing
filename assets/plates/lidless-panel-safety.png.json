@@ -1,0 +1,5 @@
+{
+  "source": "lidless/docs/images/panel-safety.png @ 13b439d (src/assets/products/lidless/panel-safety.png)",
+  "derivation": "The real panel screenshot cropped to the panel edge (x 56-696, y 56-944), dropping the desktop wallpaper surround; the rounded-corner alpha is copied from panel-timer.png (same 640x888 size) so the three shots read as one set. Pixels inside the panel unchanged.",
+  "note": "Not generated."
+}

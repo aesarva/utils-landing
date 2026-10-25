@@ -13,7 +13,7 @@ Audience and job: Mac owners (ru/en) who leave long work running (builds, downlo
 
 World: the broadcast studio wall at night, the app's own ON AIR sign built out to page scale.
 
-Approved comp: pending (surface composition round).
+Approved comp: `.impeccable/mocks/decision/lidless/model-pick.png` (the direction card comp; the user chose it as the composition).
 
 Memorable moment: the glowing ON AIR sign is a real button on the page; press it and it lights and counts down, as in the app, over a closed laptop that keeps running.
 
