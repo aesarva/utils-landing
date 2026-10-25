@@ -1,10 +1,10 @@
 {
   "lidless": {
-    "publishedAt": "2026-10-23T22:09:09Z",
-    "size": 5709781,
+    "publishedAt": "2026-10-25T11:59:43Z",
+    "size": 7084530,
     "status": "released",
-    "url": "https://github.com/aesarva/lidless/releases/download/v0.3.0/Lidless-0.3.0.dmg",
-    "version": "0.3.0"
+    "url": "https://github.com/aesarva/lidless/releases/download/v0.4.0/Lidless-0.4.0.dmg",
+    "version": "0.4.0"
   },
   "ochre": {
     "publishedAt": "2026-10-23T23:46:17Z",

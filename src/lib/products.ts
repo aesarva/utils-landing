@@ -21,3 +21,29 @@ export function formatSize(bytes: number | undefined, lang: Lang): string {
   const num = String(mb);
   return lang === 'ru' ? `${num.replace('.', ',')} МБ` : `${num} MB`;
 }
+
+/** Номер каталога лейбла: CT и порядковый номер двумя цифрами. */
+export function catalogNumber(order: number): string {
+  return `CT ${String(order).padStart(2, '0')}`;
+}
+
+const MONTHS: Record<Lang, string[]> = {
+  ru: ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+};
+
+/** Дата релиза в UTC: «25 окт 2026» / «25 Oct 2026». */
+export function formatReleaseDate(iso: string, lang: Lang): string {
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS[lang][d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/** id самого позднего вышедшего релиза; undefined, если вышедших нет. */
+export function newestReleaseId(products: ProductView[]): string | undefined {
+  let best: { id: string; at: string } | undefined;
+  for (const p of products) {
+    if (p.release.status !== 'released') continue;
+    if (!best || p.release.publishedAt > best.at) best = { id: p.id, at: p.release.publishedAt };
+  }
+  return best?.id;
+}

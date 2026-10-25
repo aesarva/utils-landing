@@ -13,6 +13,7 @@ const product = (id: string, order: number, over: Record<string, unknown> = {}) 
     requires: { macos: '26', arch: 'universal' },
     icon: 'icon.png',
     tagline: { ru: 'Текст', en: 'Text' },
+    facts: [{ icon: 'bell', text: { ru: 'Факт', en: 'Fact' } }],
     ...over,
   },
 });

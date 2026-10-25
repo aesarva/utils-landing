@@ -9,5 +9,22 @@ requires:
   arch: universal
 icon: icon.png
 tagline:
-  ru: Знайте, что, сколько и когда спишется, — заранее.
-  en: Know what will be charged, how much and when — before it happens.
+  ru: Что, сколько и когда спишется.
+  en: Know what will be charged, how much and when.
+facts:
+  - icon: bell
+    text:
+      ru: "Напоминания за 5, 3 и 1 день"
+      en: "Reminders 5, 3 and 1 day before"
+  - icon: coins
+    text:
+      ru: "Итоги по курсу ЦБ"
+      en: "Totals at the CBR rate"
+  - icon: menubar
+    text:
+      ru: "Дни до списания в строке меню"
+      en: "Days to the next charge in the menu bar"
+  - icon: lock
+    text:
+      ru: "Без аккаунта и доступа к банку"
+      en: "No account, no bank access"

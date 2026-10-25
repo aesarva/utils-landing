@@ -1,6 +1,8 @@
 ---
-// Верхняя панель: на хабе без ссылки на хаб.
+// Верхняя панель. Слева — слот lead (на хабе мир кладёт туда свой заголовок; на продукте — ссылка
+// на хаб), справа — навигация: слот links мира и переключатель языка. Своих цветов и шрифтов нет.
 import type { Lang } from '../../lib/schema';
+import { t } from '../../i18n';
 import HubLink from './HubLink.astro';
 import LangSwitch from './LangSwitch.astro';
 
@@ -14,18 +16,27 @@ const { lang, productId, isHub, notFound = false } = Astro.props;
 ---
 
 <header class="topbar">
-  {!isHub && <HubLink lang={lang} />}
-  {!notFound && <LangSwitch lang={lang} productId={productId} />}
+  <div class="topbar-lead">
+    {isHub ? <slot name="lead" /> : <HubLink lang={lang} />}
+  </div>
+  <nav class="topbar-nav" aria-label={t(lang).navLabel}>
+    <slot name="links" />
+    {!notFound && <LangSwitch lang={lang} productId={productId} />}
+  </nav>
 </header>
 
 <style>
   .topbar {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 1rem;
     padding: 1rem 1.5rem;
   }
-  .topbar :global(.lang-switch) {
+  .topbar-nav {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
     margin-left: auto;
   }
 </style>

@@ -1,0 +1,19 @@
+---
+// Ссылки навигации хаба перед переключателем языка: утилиты, GitHub, почта.
+import type { Lang } from '../../lib/schema';
+import { ORG } from '../../lib/site';
+import { t } from '../../i18n';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const d = t(lang);
+---
+
+<a href="#releases">{d.navUtilities}</a>
+<span class="nav-dot" aria-hidden="true">·</span>
+<a href={ORG.github}>{d.footerGithub}</a>
+<span class="nav-dot" aria-hidden="true">·</span>
+<a href={`mailto:${ORG.email}`}>{ORG.email}</a>
+<span class="nav-dot" aria-hidden="true">·</span>
