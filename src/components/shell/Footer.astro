@@ -31,7 +31,7 @@ const year = new Date().getUTCFullYear();
       </a>
     </li>
   </ul>
-  <p class="footer-credit">{d.footerCredit} · <span data-year>{year}</span></p>
+  <p class="footer-credit">{d.footerCredit} <span class="footer-year">· <span data-year>{year}</span></span></p>
 </footer>
 
 <style>
@@ -62,5 +62,8 @@ const year = new Date().getUTCFullYear();
   }
   .footer-credit {
     margin: 0;
+  }
+  .footer-year {
+    white-space: nowrap;
   }
 </style>

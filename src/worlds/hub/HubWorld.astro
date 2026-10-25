@@ -1,7 +1,6 @@
 ---
 // Мир хаба — каталог независимого лейбла: каждая утилита — релиз CT 01, CT 02… на сером картоне.
 // Полосы строятся из данных: новый продукт добавляет полосу. Новейший вышедший релиз — оранжевый.
-import '@fontsource/anton/400.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import '@fontsource/fira-sans-extra-condensed/500.css';
@@ -50,15 +49,16 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
         const href = pagePath(lang, p.id);
         return (
           <li class:list={['band', { 'is-newest': p.id === newest, 'is-soon': r.status !== 'released' }]}>
-            <p class="band-num" aria-hidden="true">{catalogNumber(p.order)}</p>
+            <p class="band-num ink" aria-hidden="true">{catalogNumber(p.order)}</p>
             <Image class="band-emboss" src={embossedIcon(p)} alt="" width={452} height={452} />
             <div class="band-text">
               <h2 class="band-name">
-                <a class="band-link" href={href}>
+                <a class="band-link ink" href={href}>
                   <span class="visually-hidden">{catalogNumber(p.order)} </span>
                   {p.name}
                 </a>
                 {p.id === newest && <span class="band-sticker">{d.newRelease}</span>}
+                <span class="band-arrow" aria-hidden="true" />
               </h2>
               <p class="band-line">{p.tagline[lang]}</p>
               <p class="band-press" aria-label={d.pressingLabel}>
@@ -84,7 +84,6 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
                 ))}
               </ul>
             </div>
-            <span class="band-arrow" aria-hidden="true" />
           </li>
         );
       })
@@ -93,7 +92,7 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
 </section>
 
 <section class="promises" aria-labelledby="promises-title">
-  <h2 id="promises-title" class="promises-title">{d.promisesTitle}</h2>
+  <h2 id="promises-title" class="promises-title ink">{d.promisesTitle}</h2>
   <ul class="promises-list">
     {
       d.promises.map((text, i) => (
@@ -109,14 +108,20 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
 </section>
 
 <style is:global>
-  /* У Anton нет кириллицы: русские заглавия берут Fira Sans Extra Condensed 800, объявленную весом 400,
-     чтобы браузер не подставлял средний вес. Диапазон — только кириллица. */
+  /* Дисплейный голос: латиница — Anton, кириллица — Oswald 700 (тот же род альтернативного гротеска).
+     Одно семейство с разбивкой по unicode-range, чтобы на / заголовки не меняли голос. */
   @font-face {
-    font-family: 'Hub Display Cyrillic';
-    font-style: normal;
+    font-family: 'Hub Display';
     font-weight: 400;
     font-display: swap;
-    src: url('../../../node_modules/@fontsource/fira-sans-extra-condensed/files/fira-sans-extra-condensed-cyrillic-800-normal.woff2') format('woff2');
+    src: url('../../../node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215;
+  }
+  @font-face {
+    font-family: 'Hub Display';
+    font-weight: 400;
+    font-display: swap;
+    src: url('../../../node_modules/@fontsource/oswald/files/oswald-cyrillic-700-normal.woff2') format('woff2');
     unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
   }
 
@@ -132,7 +137,7 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     --ink-soft: #3b3936;
     --board-base: #93908a;
     --signal: #f84c0a;
-    --display: 'Anton', 'Hub Display Cyrillic', 'Fira Sans Extra Condensed', sans-serif;
+    --display: 'Hub Display', sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, monospace;
     --grotesk: 'Fira Sans Extra Condensed', sans-serif;
     --rule: calc(3 * var(--u));
@@ -141,8 +146,8 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
 
   :root[data-world='hub'] body {
     background-color: var(--board-base);
-    background-image: url('../../../assets/plates/board-texture.png');
-    background-size: calc(480 * var(--u)) auto;
+    background-image: url('../../../assets/plates/board-texture.webp');
+    background-size: calc(1024 * var(--u)) auto;
     font-size: calc(18 * var(--u));
     -webkit-font-smoothing: antialiased;
   }
@@ -317,6 +322,13 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     }
   }
 
+  /* Печатная краска: светлые волокна картона проступают сквозь дисплейный текст. */
+  :root[data-world='hub'] .ink {
+    mask-image: url('../../../assets/plates/ink-mask.webp');
+    mask-size: calc(1024 * var(--u)) auto;
+    mask-mode: alpha;
+  }
+
   :root[data-world='hub'] .visually-hidden {
     position: absolute;
     width: 1px;
@@ -417,8 +429,8 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     transform: translateX(calc(12 * var(--u)));
   }
   .band-sticker {
-    padding: calc(22 * var(--u)) calc(30 * var(--u)) calc(16 * var(--u));
-    background: var(--signal);
+    padding: calc(24 * var(--u)) calc(34 * var(--u)) calc(18 * var(--u));
+    background: url('../../../assets/plates/sticker.png') center / 100% 100% no-repeat;
     color: var(--ink);
     font-size: calc(36 * var(--u));
     line-height: 1;
@@ -426,14 +438,14 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     text-transform: uppercase;
     margin: calc(-24 * var(--u)) 0 0 calc(4 * var(--u));
     transform: rotate(-3deg);
-    box-shadow: 0 calc(3 * var(--u)) calc(6 * var(--u)) rgb(0 0 0 / 0.25);
+    filter: drop-shadow(0 calc(2 * var(--u)) calc(3 * var(--u)) rgb(0 0 0 / 0.22));
     animation: sticker-slap 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
   }
   /* Единственный момент при загрузке: наклейку прижимают к картону. */
   @keyframes sticker-slap {
     from {
       transform: rotate(-7deg) scale(1.18);
-      box-shadow: 0 calc(16 * var(--u)) calc(22 * var(--u)) rgb(0 0 0 / 0.3);
+      filter: drop-shadow(0 calc(16 * var(--u)) calc(18 * var(--u)) rgb(0 0 0 / 0.3));
     }
   }
   .band-line {
@@ -461,14 +473,14 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     list-style: none;
     font-family: var(--grotesk);
     font-weight: 500;
-    font-size: max(calc(16 * var(--u)), 12px);
-    line-height: 1.15;
+    font-size: max(calc(17.5 * var(--u)), 12px);
+    line-height: 1.12;
   }
   .band-facts li {
     display: flex;
     align-items: center;
-    gap: calc(14 * var(--u));
-    padding: 0 calc(14 * var(--u));
+    gap: calc(12 * var(--u));
+    padding: 0 calc(12 * var(--u));
   }
   .band-facts li + li {
     border-left: calc(1.5 * var(--u)) solid var(--ink-soft);
@@ -478,8 +490,8 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
   }
   .band-facts svg {
     flex: none;
-    width: calc(34 * var(--u));
-    height: calc(34 * var(--u));
+    width: calc(30 * var(--u));
+    height: calc(30 * var(--u));
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
@@ -625,7 +637,13 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
       height: 24px;
     }
     .band-arrow {
-      display: none;
+      position: relative;
+      top: auto;
+      right: auto;
+      flex: none;
+      width: 44px;
+      height: 36px;
+      margin-left: auto;
     }
     .promises {
       grid-template-columns: 1fr;

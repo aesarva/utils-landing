@@ -10,7 +10,7 @@ const tsx = join(REPO, 'node_modules/.bin/tsx');
 
 /**
  * Временный корень: копия продуктов, снимка, миров и иконок проекта плюс новый продукт `newtool`,
- * у которого есть всё (YAML, иконка, мир, строка реестра), кроме записи в снимке.
+ * у которого есть всё (YAML, иконка, тиснёная плита хаба, мир, строка реестра), кроме записи в снимке.
  */
 function projectWithNewProduct(): string {
   const root = mkdtempSync(join(tmpdir(), 'fetch-releases-'));
@@ -33,6 +33,19 @@ function projectWithNewProduct(): string {
   mkdirSync(join(root, 'src/worlds/newtool'));
   const world = readFileSync(join(REPO, 'src/worlds/subus/World.astro'), 'utf8').replaceAll('"subus"', '"newtool"');
   writeFileSync(join(root, 'src/worlds/newtool/World.astro'), world);
+  // Тиснёные плиты хаба: существующие и плита нового продукта (копия чужой — для проверки достаточно).
+  mkdirSync(join(root, 'assets/plates'), { recursive: true });
+  for (const id of ['ochre', 'lidless', 'subus']) {
+    copyFileSync(join(REPO, 'assets/plates', `icon-${id}.png`), join(root, 'assets/plates', `icon-${id}.png`));
+  }
+  copyFileSync(join(REPO, 'assets/plates/icon-subus.png'), join(root, 'assets/plates/icon-newtool.png'));
+  const emboss = join(root, 'src/worlds/hub/emboss.ts');
+  writeFileSync(
+    emboss,
+    readFileSync(emboss, 'utf8')
+      .replace(/(import subus from .*\n)/, "$1import newtool from '../../../assets/plates/icon-newtool.png';\n")
+      .replace(/\{ ochre, lidless, subus \}/, '{ ochre, lidless, subus, newtool }'),
+  );
   const registry = join(root, 'src/worlds/registry.ts');
   writeFileSync(
     registry,

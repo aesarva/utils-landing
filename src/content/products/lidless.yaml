@@ -18,8 +18,8 @@ facts:
       en: "Works with the lid closed"
   - icon: battery
     text:
-      ru: "Стоп при разряде и нагреве"
-      en: "Stops on low battery and heat"
+      ru: "Стоп при разряде и жаре"
+      en: "Stops on low battery, heat"
   - icon: moon
     text:
       ru: "Сон всегда возвращается"

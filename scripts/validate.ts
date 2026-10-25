@@ -29,6 +29,8 @@ const errors = validateSite({
   worldDirs,
   worldStyles,
   assetExists: (id, file) => existsSync(join(root, 'src/assets/products', id, file)),
+  embossPlateExists: (id) => existsSync(join(root, 'assets/plates', `icon-${id}.png`)),
+  embossRegistry: [...readFileSync(join(root, 'src/worlds/hub/emboss.ts'), 'utf8').matchAll(/assets\/plates\/icon-([a-z0-9-]+)\.png/g)].map((m) => m[1]),
   dicts: { ru, en },
 });
 
