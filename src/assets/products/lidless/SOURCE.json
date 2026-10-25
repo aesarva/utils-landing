@@ -1,7 +1,7 @@
 {
   "repo": "lidless",
   "ref": "develop",
-  "commit": "af8d8a53135202c24fb7a9d80eee7aa961cbf858",
+  "commit": "13b439d16e9883e42f5051345be8d4b7f2842dd7",
   "files": {
     "icon.png": "docs/images/icon.png",
     "menubar-dark.png": "docs/images/menubar-dark.png",
