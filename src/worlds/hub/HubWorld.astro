@@ -162,8 +162,9 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     text-decoration-thickness: calc(2 * var(--u));
     text-underline-offset: 0.18em;
   }
+  /* Фокус — цветом краски: оранжевый на картоне даёт ~1,1:1, а индикатору нужно 3:1. */
   :root[data-world='hub'] :focus-visible {
-    outline: calc(3 * var(--u)) solid var(--signal);
+    outline: max(calc(3 * var(--u)), 2px) solid var(--ink);
     outline-offset: calc(4 * var(--u));
   }
 
@@ -463,7 +464,7 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     gap: calc(36 * var(--u));
     margin: calc(8 * var(--u)) 0 0;
     padding: calc(3 * var(--u)) 0;
-    border-block: calc(1.5 * var(--u)) solid var(--ink-soft);
+    border-block: max(calc(1.5 * var(--u)), 1px) solid var(--ink-soft);
     font-family: var(--mono);
     font-size: max(calc(18 * var(--u)), 13px);
     font-variant-numeric: tabular-nums;
@@ -486,19 +487,14 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     padding: 0 calc(12 * var(--u));
   }
   .band-facts li + li {
-    border-left: calc(1.5 * var(--u)) solid var(--ink-soft);
+    border-left: max(calc(1.5 * var(--u)), 1px) solid var(--ink-soft);
   }
   .band-facts li:first-child {
     padding-left: 0;
   }
   .band-facts svg {
-    flex: none;
     width: calc(30 * var(--u));
     height: calc(30 * var(--u));
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.8;
-    stroke-linecap: square;
   }
   .band-arrow {
     position: absolute;
@@ -564,7 +560,7 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     padding: 0 calc(20 * var(--u));
   }
   .promises-list li + li {
-    border-left: calc(1.5 * var(--u)) solid var(--ink-soft);
+    border-left: max(calc(1.5 * var(--u)), 1px) solid var(--ink-soft);
   }
   .promises-list svg,
   .band-facts svg {
