@@ -1,0 +1,13 @@
+id: subus
+name: Subus
+order: 3
+repo: aesarva/subus
+dmg: Subus
+license: GPL-3.0
+requires:
+  macos: "14"
+  arch: universal
+icon: icon.png
+tagline:
+  ru: Знайте, что, сколько и когда спишется, — заранее.
+  en: Know what will be charged, how much and when — before it happens.

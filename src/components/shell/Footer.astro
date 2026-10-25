@@ -1,0 +1,23 @@
+---
+// Подвал: организация, ссылка на GitHub aesarva и год (год сборки).
+import type { Lang } from '../../lib/schema';
+import { ORG } from '../../lib/site';
+import { t } from '../../i18n';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const d = t(lang);
+const year = new Date().getUTCFullYear();
+---
+
+<footer class="footer">
+  <span>{d.footerOrg}</span> · <a href={ORG.github}>{d.footerGithub}</a> · <span data-year>{year}</span>
+</footer>
+
+<style>
+  .footer {
+    padding: 1.5rem;
+  }
+</style>

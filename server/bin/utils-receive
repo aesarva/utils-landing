@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+# Приёмник релизов utils-landing. Вызывается ключом CI: ssh utils-deploy@сервер <sha> < сборка.tar.gz
+# (authorized_keys: restrict,command="/usr/local/bin/utils-receive").
+# Пустой stdin — откат: current переключается на новейший из лежащих релизов этого <sha>.
+# Каждая выкладка — новый каталог releases/<sha>.<наносекунды>-<pid>; current переключается атомарно,
+# поэтому повторная выкладка того же sha не оставляет current висячей.
+# Коды: 0 — готово; 2 — плохой sha; 3 — пустой stdin, а релиза нет; 4 — архив больше лимита, битый или небезопасный
+# (симлинки, хардлинки, устройства, fifo, sparse, абсолютные пути и «..»);
+# 5 — в сборке нет index.html, en/index.html или 404.html; 6 — другая выкладка уже идёт (занят замок);
+# 7 — загрузка не завершилась за UTILS_UPLOAD_TIMEOUT секунд (по умолчанию 300): замок не держится вечно.
+set -euo pipefail
+
+ROOT=${UTILS_ROOT:-/srv/utils/site}
+MAX=${UTILS_MAX_BYTES:-52428800}
+# Лимит распакованного (сумма размеров файлов в архиве): сжатая «бомба» иначе забила бы общий с VPN диск.
+UNPACK_MAX=${UTILS_MAX_UNPACKED:-209715200}
+# Общий срок приёма архива: живой клиент мог бы держать stdin открытым, а с ним и замок, бесконечно.
+UPLOAD_TIMEOUT=${UTILS_UPLOAD_TIMEOUT:-300}
+KEEP=5
+SHA=${SSH_ORIGINAL_COMMAND:-${1:-}}
+
+if [[ ! $SHA =~ ^[0-9a-f]{40}$ ]]; then
+  echo "utils-receive: нужен sha коммита (40 hex), получено: '$SHA'" >&2
+  exit 2
+fi
+
+if [[ ! $UPLOAD_TIMEOUT =~ ^[1-9][0-9]*$ ]]; then
+  echo "utils-receive: UTILS_UPLOAD_TIMEOUT должен быть целым числом секунд, получено: '$UPLOAD_TIMEOUT'" >&2
+  exit 2
+fi
+# python3 нужен и для приёма с таймаутом, и для проверки архива.
+if ! command -v python3 > /dev/null 2>&1; then
+  echo "utils-receive: нет python3 для приёма и проверки архива" >&2
+  exit 4
+fi
+
+RELEASES=$ROOT/releases
+# Права явно, а не от umask: nginx должен читать релизы.
+install -d -m 755 "$RELEASES"
+
+UPLOAD=""
+INCOMING=""
+TMPLINK=""
+LOCKDIR=""
+cleanup() {
+  [[ -n $UPLOAD ]] && rm -rf "$UPLOAD"
+  [[ -n $INCOMING ]] && rm -rf "$INCOMING"
+  [[ -n $TMPLINK ]] && rm -f "$TMPLINK"
+  [[ -n $LOCKDIR ]] && rmdir "$LOCKDIR" 2>/dev/null
+  return 0
+}
+trap cleanup EXIT
+
+# Замок на всё: приём, проверка, переключение, откат, чистка. Занят — код 6.
+if command -v flock > /dev/null 2>&1; then
+  exec 9> "$ROOT/.lock"
+  if ! flock -n 9; then
+    echo "utils-receive: идёт другая выкладка" >&2
+    exit 6
+  fi
+else
+  # Запасной замок там, где нет flock (macOS в тестах): mkdir атомарен.
+  if ! mkdir "$ROOT/.lock.d" 2> /dev/null; then
+    echo "utils-receive: идёт другая выкладка" >&2
+    exit 6
+  fi
+  LOCKDIR=$ROOT/.lock.d
+fi
+
+# Остатки запуска, убитого SIGKILL: замок наш, значит, они ничьи.
+find "$ROOT" -mindepth 1 -maxdepth 1 \( -name '.upload-*' -o -name '.incoming-*' -o -name '.current-*' \) -exec rm -rf {} +
+
+UPLOAD=$(mktemp "$ROOT/.upload-XXXXXX")
+INCOMING=$(mktemp -d "$ROOT/.incoming-XXXXXX")
+
+switch_current() {
+  TMPLINK=$(mktemp -u "$ROOT/.current-XXXXXX")
+  ln -s "releases/$1" "$TMPLINK"
+  # GNU mv -T подменяет ссылку атомарно; там, где его нет (macOS в тестах), — ln -sfn.
+  if ! mv -Tf "$TMPLINK" "$ROOT/current" 2> /dev/null; then
+    rm -f "$TMPLINK"
+    ln -sfn "releases/$1" "$ROOT/current"
+  fi
+  TMPLINK=""
+}
+
+prune() {
+  local current n=0 d
+  current=$(basename "$(readlink "$ROOT/current")")
+  # скрытые каталоги пропускаются; сортировка по метке времени в имени, новейшие — первыми.
+  while read -r d; do
+    [[ -z $d || $d == "$current" ]] && continue
+    n=$((n + 1))
+    ((n < KEEP)) && continue
+    rm -rf "${RELEASES:?}/$d"
+  done < <(find "$RELEASES" -mindepth 1 -maxdepth 1 -type d ! -name '.*' | sed 's|.*/||' | sort -t. -k2,2r)
+}
+
+# Приём через python3: общий срок UPLOAD_TIMEOUT и лимит сжатого размера MAX.
+# stdin (архив) передаётся в fd 3, потому что stdin python занят текстом скрипта.
+# Коды python: 0 — принят целиком; 7 — срок вышел; 8 — больше MAX.
+UPLOAD_RC=0
+python3 - "$UPLOAD" "$MAX" "$UPLOAD_TIMEOUT" 3<&0 << 'PY' || UPLOAD_RC=$?
+import os, select, sys, time
+
+path, cap, timeout = sys.argv[1], int(sys.argv[2]), float(sys.argv[3])
+deadline = time.monotonic() + timeout
+total = 0
+with open(path, 'wb') as out:
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            sys.exit(7)
+        ready, _, _ = select.select([3], [], [], left)
+        if not ready:
+            sys.exit(7)
+        chunk = os.read(3, 1 << 16)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > cap:
+            sys.exit(8)
+        out.write(chunk)
+PY
+case $UPLOAD_RC in
+  0) ;;
+  7)
+    echo "utils-receive: загрузка не завершилась за $UPLOAD_TIMEOUT с" >&2
+    exit 7
+    ;;
+  8)
+    echo "utils-receive: архив больше $MAX байт" >&2
+    exit 4
+    ;;
+  *)
+    echo "utils-receive: архив не принят (python3 вернул $UPLOAD_RC)" >&2
+    exit 4
+    ;;
+esac
+SIZE=$(wc -c < "$UPLOAD" | tr -d ' ')
+
+if ((SIZE == 0)); then
+  LATEST=$(find "$RELEASES" -mindepth 1 -maxdepth 1 -type d -name "$SHA.*" | sed 's|.*/||' | sort -t. -k2,2r | sed -n 1p)
+  if [[ -z $LATEST ]]; then
+    echo "utils-receive: архива нет, и релиза $SHA на сервере нет" >&2
+    exit 3
+  fi
+  switch_current "$LATEST"
+  prune
+  echo "utils-receive: current → $LATEST (откат)"
+  exit 0
+fi
+
+# Проверка архива ДО распаковки: только обычные файлы и каталоги, без абсолютных путей и «..»,
+# без release.txt (его пишет приёмник), не больше 20000 членов, сумма размеров не больше лимита.
+# Поток после gzip ограничен (лимит + 1 МиБ на заголовки tar) ещё до разбора: огромные PAX/GNU-метаданные
+# иначе выделились бы в памяти раньше проверок размера. Битый gzip/tar — тоже отказ.
+if ! python3 - "$UPLOAD" "$UNPACK_MAX" << 'PY'
+import gzip, sys, tarfile
+
+path, limit = sys.argv[1], int(sys.argv[2])
+MAX_MEMBERS = 20000
+
+
+class Capped:
+    """Читает gzip-поток не дальше cap байт; превышение — исключение до выделения лишнего."""
+
+    def __init__(self, f, cap):
+        self.f, self.left = f, cap
+
+    def read(self, n=-1):
+        want = self.left + 1 if n is None or n < 0 else min(n, self.left + 1)
+        data = self.f.read(want)
+        if len(data) > self.left:
+            raise ValueError('распакованный поток больше лимита')
+        self.left -= len(data)
+        return data
+
+
+total = 0
+count = 0
+try:
+    with gzip.open(path, 'rb') as gz:
+        with tarfile.open(fileobj=Capped(gz, limit + 1024 * 1024), mode='r|') as tf:
+            for m in tf:
+                count += 1
+                if count > MAX_MEMBERS:
+                    sys.exit('слишком много членов архива')
+                name = m.name
+                if not name or '\0' in name or name.startswith('/') or '..' in name.split('/'):
+                    sys.exit('небезопасный путь: %r' % name)
+                if [p for p in name.split('/') if p not in ('', '.')] == ['release.txt']:
+                    sys.exit('release.txt пишет только приёмник')
+                if m.type not in (tarfile.REGTYPE, tarfile.AREGTYPE, tarfile.DIRTYPE):
+                    sys.exit('недопустимый тип члена архива: %r' % name)
+                if m.sparse is not None or any(k.startswith('GNU.sparse') for k in m.pax_headers):
+                    sys.exit('sparse-файлы не принимаются: %r' % name)
+                if m.isreg():
+                    total += m.size
+                    if total > limit:
+                        sys.exit('распакованная сборка больше %d байт' % limit)
+except SystemExit:
+    raise
+except Exception as e:
+    sys.exit('архив не читается: %s' % e)
+PY
+then
+  echo "utils-receive: архив отклонён" >&2
+  exit 4
+fi
+
+if ! tar -xzf "$UPLOAD" -C "$INCOMING" --no-same-owner --no-same-permissions 2> /dev/null; then
+  echo "utils-receive: архив не распаковался" >&2
+  exit 4
+fi
+# Второй рубеж: после распаковки не должно быть ничего, кроме файлов и каталогов.
+if [[ -n $(find "$INCOMING" ! -type f ! -type d -print -quit) ]]; then
+  echo "utils-receive: в сборке есть не файлы и не каталоги" >&2
+  exit 4
+fi
+for f in index.html en/index.html 404.html; do
+  if [[ ! -f $INCOMING/$f || -L $INCOMING/$f ]]; then
+    echo "utils-receive: в сборке нет index.html, en/index.html или 404.html" >&2
+    exit 5
+  fi
+done
+
+printf '%s %s\n' "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$INCOMING/release.txt"
+# nginx читает релиз: каталоги 755, файлы 644, независимо от umask и прав в архиве.
+find "$INCOMING" -type d -exec chmod 755 {} +
+find "$INCOMING" -type f -exec chmod 644 {} +
+NAME=$SHA.$(python3 -c 'import time; print("%020d" % time.time_ns())')-$$
+mv "$INCOMING" "$RELEASES/$NAME"
+INCOMING=""
+switch_current "$NAME"
+prune
+echo "utils-receive: current → $NAME"

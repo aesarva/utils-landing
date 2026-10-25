@@ -1,0 +1,31 @@
+---
+// Верхняя панель: на хабе без ссылки на хаб.
+import type { Lang } from '../../lib/schema';
+import HubLink from './HubLink.astro';
+import LangSwitch from './LangSwitch.astro';
+
+interface Props {
+  lang: Lang;
+  productId?: string;
+  isHub: boolean;
+  notFound?: boolean;
+}
+const { lang, productId, isHub, notFound = false } = Astro.props;
+---
+
+<header class="topbar">
+  {!isHub && <HubLink lang={lang} />}
+  {!notFound && <LangSwitch lang={lang} productId={productId} />}
+</header>
+
+<style>
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+  }
+  .topbar :global(.lang-switch) {
+    margin-left: auto;
+  }
+</style>

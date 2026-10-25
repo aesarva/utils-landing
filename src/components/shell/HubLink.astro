@@ -1,0 +1,13 @@
+---
+// Ссылка со страницы продукта на хаб.
+import type { Lang } from '../../lib/schema';
+import { pagePath } from '../../lib/routes';
+import { t } from '../../i18n';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+---
+
+<a class="hub-link" href={pagePath(lang)}>{t(lang).hub}</a>

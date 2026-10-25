@@ -1,0 +1,19 @@
+---
+// Страница хаба: оболочка + мир хаба.
+import type { Lang } from '../lib/schema';
+import { loadProducts } from '../lib/load';
+import { t } from '../i18n';
+import Shell from '../layouts/Shell.astro';
+import HubWorld from '../worlds/hub/HubWorld.astro';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const products = await loadProducts();
+const d = t(lang);
+---
+
+<Shell lang={lang} title={d.hubTitle} description={d.hubDescription} isHub>
+  <HubWorld lang={lang} products={products} />
+</Shell>

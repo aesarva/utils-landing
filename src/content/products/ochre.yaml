@@ -1,0 +1,13 @@
+id: ochre
+name: Ochre
+order: 1
+repo: aesarva/ochre
+dmg: Ochre
+license: MIT
+requires:
+  macos: "26"
+  arch: universal
+icon: icon.png
+tagline:
+  ru: Чип вашего Mac в работе — прямо в строке меню.
+  en: See your Mac's chip at work, right from the menu bar.

@@ -1,0 +1,67 @@
+---
+// Оболочка страницы: head, верхняя панель, подвал. Своих цветов и шрифтов нет:
+// только var(--shell-*), которые задаёт мир на странице.
+// <html data-world="<id>|hub">: CSS всех миров может оказаться в бандле страницы (реестр импортирует
+// все миры), поэтому каждый мир объявляет переменные и глобальные стили только под своим data-world.
+import type { Lang } from '../lib/schema';
+import { alternates, pagePath } from '../lib/routes';
+import { INDEXABLE, SITE } from '../lib/site';
+import TopBar from '../components/shell/TopBar.astro';
+import Footer from '../components/shell/Footer.astro';
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description: string;
+  productId?: string;
+  isHub?: boolean;
+  /** Страница ошибки: без canonical и alternates, всегда noindex. */
+  notFound?: boolean;
+  /** URL favicon (png); без него ссылка не выводится. */
+  favicon?: string;
+}
+const { lang, title, description, productId, isHub = false, notFound = false, favicon } = Astro.props;
+const canonical = `${SITE}${pagePath(lang, productId)}`;
+// Хаб и 404 — мир хаба.
+const world = productId ?? 'hub';
+---
+
+<!doctype html>
+<html lang={lang} data-world={world}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {!notFound && <link rel="canonical" href={canonical} />}
+    {!notFound && alternates(productId).map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+    {(!INDEXABLE || notFound) && <meta name="robots" content="noindex" />}
+    {favicon && <link rel="icon" type="image/png" href={favicon} />}
+    <slot name="head" />
+  </head>
+  <body>
+    <TopBar lang={lang} productId={productId} isHub={isHub} notFound={notFound} />
+    <main>
+      <slot />
+    </main>
+    <Footer lang={lang} />
+  </body>
+</html>
+
+<style is:global>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--shell-ink);
+    background: var(--shell-ground);
+    font-family: var(--shell-font);
+  }
+  main {
+    flex: 1;
+  }
+  a {
+    color: var(--shell-accent);
+  }
+</style>

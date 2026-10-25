@@ -1,0 +1,299 @@
+import { spawn, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import {
+  existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+const SCRIPT = join(process.cwd(), 'server/bin/utils-receive');
+const A = 'a'.repeat(40);
+const B = 'b'.repeat(40);
+
+let root: string;
+let outside: string;
+const cleanup: string[] = [];
+
+function tmp(prefix: string): string {
+  const d = mkdtempSync(join(tmpdir(), prefix));
+  cleanup.push(d);
+  return d;
+}
+
+beforeEach(() => {
+  root = tmp('utils-receive-');
+  outside = tmp('utils-outside-');
+});
+
+afterEach(() => {
+  for (const d of cleanup.splice(0)) rmSync(d, { recursive: true, force: true });
+});
+
+/** Архив сборки: index.html, en/index.html и 404.html (если не сказано иначе) с меткой внутри. */
+function archive(label: string, opts: { notFound?: boolean; en?: boolean; extra?: Buffer } = {}): Buffer {
+  const dir = tmp('dist-');
+  writeFileSync(join(dir, 'index.html'), label);
+  if (opts.en !== false) {
+    mkdirSync(join(dir, 'en'));
+    writeFileSync(join(dir, 'en/index.html'), 'en');
+  }
+  if (opts.notFound !== false) writeFileSync(join(dir, '404.html'), '404');
+  if (opts.extra) writeFileSync(join(dir, 'noise.bin'), opts.extra);
+  return spawnSync('tar', ['-czf', '-', '-C', dir, '.']).stdout;
+}
+
+type Member = { name: string; kind: 'file' | 'dir' | 'sym' | 'hard' | 'fifo' | 'chr' | 'sparse' | 'pax' | 'many'; link?: string; size?: number };
+
+/** Архив с точными типами членов (Python tarfile): обычная сборка плюс переданные члены. */
+function crafted(members: Member[]): Buffer {
+  const py = `
+import io, json, sys, tarfile
+spec = json.loads(sys.argv[1])
+buf = io.BytesIO()
+with tarfile.open(fileobj=buf, mode='w:gz') as tf:
+    for n, data in (('index.html', b'X'), ('en/index.html', b'en'), ('404.html', b'404')):
+        ti = tarfile.TarInfo(n); ti.size = len(data); tf.addfile(ti, io.BytesIO(data))
+    for m in spec:
+        ti = tarfile.TarInfo(m['name'])
+        k = m['kind']
+        if k == 'many':
+            for i in range(m['size']):
+                d = tarfile.TarInfo('d/%d' % i); d.type = tarfile.DIRTYPE; tf.addfile(d)
+            continue
+        if k == 'pax':
+            ti.pax_headers = {'comment': 'x' * (8 << 20)}; ti.size = 1; tf.addfile(ti, io.BytesIO(b'0')); continue
+        if k == 'file':
+            ti.size = m.get('size', 1); tf.addfile(ti, io.BytesIO(b'\\0' * ti.size)); continue
+        ti.type = {'dir': tarfile.DIRTYPE, 'sym': tarfile.SYMTYPE, 'hard': tarfile.LNKTYPE,
+                   'fifo': tarfile.FIFOTYPE, 'chr': tarfile.CHRTYPE, 'sparse': tarfile.GNUTYPE_SPARSE}[k]
+        ti.linkname = m.get('link', '')
+        tf.addfile(ti)
+sys.stdout.buffer.write(buf.getvalue())
+`;
+  const r = spawnSync('python3', ['-I', '-c', py, JSON.stringify(members)], { maxBuffer: 1 << 26 });
+  if (r.status !== 0) throw new Error(String(r.stderr));
+  return r.stdout;
+}
+
+function receive(sha: string, input: Buffer | string, env: Record<string, string> = {}) {
+  return spawnSync('bash', [SCRIPT, sha], { input, env: { ...process.env, UTILS_ROOT: root, ...env } });
+}
+
+const current = () => readlinkSync(join(root, 'current'));
+const served = () => readFileSync(join(root, 'current/index.html'), 'utf8');
+const releases = () => readdirSync(join(root, 'releases'));
+const leftovers = () => readdirSync(root).filter((n) => /^\.(upload|incoming|current)-/.test(n) || n === '.lock.d');
+
+describe('utils-receive', () => {
+  it('выкладывает релиз, пишет release.txt и переключает current', () => {
+    expect(receive(A, archive('A')).status).toBe(0);
+    expect(current()).toMatch(new RegExp(`^releases/${A}\\.`));
+    expect(served()).toBe('A');
+    expect(readFileSync(join(root, 'current/release.txt'), 'utf8')).toMatch(new RegExp(`^${A} \\d{4}-`));
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('отвергает sha не из 40 hex', () => {
+    expect(receive('xyz', archive('A')).status).toBe(2);
+  });
+
+  for (const [what, opts] of [
+    ['404.html', { notFound: false }],
+    ['en/index.html', { en: false }],
+  ] as const) {
+    it(`без ${what} релиз не принимается, current прежний`, () => {
+      receive(A, archive('A'));
+      const before = current();
+      expect(receive(B, archive('B', opts)).status).toBe(5);
+      expect(current()).toBe(before);
+      expect(served()).toBe('A');
+      expect(releases()).toHaveLength(1);
+      expect(leftovers()).toEqual([]);
+    });
+  }
+
+  it('битый архив — код 4, current прежний, временных каталогов нет', () => {
+    receive(A, archive('A'));
+    const before = current();
+    expect(receive(B, Buffer.from('not a gzip at all')).status).toBe(4);
+    expect(current()).toBe(before);
+    expect(releases()).toHaveLength(1);
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('архив больше лимита — код 4', () => {
+    expect(receive(A, archive('A', { extra: randomBytes(4096) }), { UTILS_MAX_BYTES: '100' }).status).toBe(4);
+    expect(existsSync(join(root, 'current'))).toBe(false);
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('архив, распаковка которого больше лимита, — код 4, current прежний', () => {
+    receive(A, archive('A'));
+    const before = current();
+    const bomb = archive('B', { extra: Buffer.alloc(2 * 1024 * 1024) });
+    expect(bomb.length).toBeLessThan(64 * 1024);
+    expect(receive(B, bomb, { UTILS_MAX_UNPACKED: String(1024 * 1024) }).status).toBe(4);
+    expect(current()).toBe(before);
+    expect(releases()).toHaveLength(1);
+    expect(leftovers()).toEqual([]);
+  });
+
+  describe('небезопасные архивы', () => {
+    const sentinel = () => join(outside, 'sentinel');
+    const cases: [string, Member[], { unpacked?: number; message?: string }?][] = [
+      ['симлинк на внешний файл', [{ name: 'release.txt', kind: 'sym', link: '' }]],
+      ['симлинк на каталог', [{ name: 'pub', kind: 'sym', link: '' }]],
+      ['хардлинк', [{ name: 'hl', kind: 'hard', link: '' }]],
+      ['абсолютный путь', [{ name: '', kind: 'file' }]],
+      ['компонент ..', [{ name: '../x', kind: 'file' }]],
+      ['fifo', [{ name: 'ff', kind: 'fifo' }]],
+      ['устройство', [{ name: 'dev', kind: 'chr' }]],
+      ['sparse-член', [{ name: 'sp', kind: 'sparse' }]],
+      ['огромные PAX-метаданные', [{ name: 'px', kind: 'pax' }]],
+      ['слишком много членов', [{ name: 'm', kind: 'many', size: 20001 }], { unpacked: 100 * 1024 * 1024, message: 'слишком много членов' }],
+      ['каталог release.txt', [{ name: 'release.txt', kind: 'dir' }]],
+      ['файл ./release.txt', [{ name: './release.txt', kind: 'file' }]],
+      ['логический размер больше лимита', [{ name: 'big', kind: 'file', size: 2 * 1024 * 1024 }]],
+    ];
+    for (const [what, members, extra] of cases) {
+      it(`${what}: код 4, current прежний, внешний файл цел`, () => {
+        writeFileSync(sentinel(), 'keep');
+        const fixed = members.map((m) => {
+          if (what === 'абсолютный путь') return { ...m, name: sentinel() };
+          if (m.kind === 'sym' || m.kind === 'hard') return { ...m, link: m.kind === 'hard' ? sentinel() : (what === 'симлинк на каталог' ? outside : sentinel()) };
+          return m;
+        });
+        receive(A, archive('A'));
+        const before = current();
+        const r = receive(B, crafted(fixed), { UTILS_MAX_UNPACKED: String(extra?.unpacked ?? 1024 * 1024) });
+        expect(r.status).toBe(4);
+        // Отказ должен дать именно проверка до распаковки, а не случайный сбой tar.
+        expect(String(r.stderr)).toContain('отклонён');
+        if (extra?.message) expect(String(r.stderr)).toContain(extra.message);
+        expect(current()).toBe(before);
+        expect(served()).toBe('A');
+        expect(releases()).toHaveLength(1);
+        expect(readFileSync(sentinel(), 'utf8')).toBe('keep');
+        expect(readdirSync(outside)).toEqual(['sentinel']);
+        expect(leftovers()).toEqual([]);
+      });
+    }
+  });
+
+  it('повтор того же sha заменяет содержимое, current не висит', () => {
+    receive(A, archive('A1'));
+    const first = current();
+    expect(receive(A, archive('A2')).status).toBe(0);
+    expect(current()).not.toBe(first);
+    expect(current()).toMatch(new RegExp(`^releases/${A}\\.`));
+    expect(served()).toBe('A2');
+  });
+
+  it('пустой stdin: нет релиза — код 3, есть — откат на новейший его каталог', () => {
+    expect(receive(B, '').status).toBe(3);
+    receive(A, archive('A1'));
+    receive(A, archive('A2'));
+    receive(B, archive('B'));
+    expect(served()).toBe('B');
+    expect(receive(A, '').status).toBe(0);
+    expect(current()).toMatch(new RegExp(`^releases/${A}\\.`));
+    expect(served()).toBe('A2');
+  });
+
+  it('хранит 5 последних релизов, текущий среди них', () => {
+    const shas = Array.from({ length: 7 }, (_, i) => String(i).repeat(40));
+    for (const sha of shas) expect(receive(sha, archive(sha)).status).toBe(0);
+    expect(releases().map((n) => n.split('.')[0]).sort()).toEqual(shas.slice(2).sort());
+    expect(current()).toMatch(new RegExp(`^releases/${shas[6]}\\.`));
+  });
+
+  it('откат на старый релиз не удаляет его при чистке', () => {
+    const shas = Array.from({ length: 6 }, (_, i) => String(i).repeat(40));
+    for (const sha of shas) receive(sha, archive(sha));
+    expect(receive(shas[1], '').status).toBe(0);
+    expect(served()).toBe(shas[1]);
+    expect(releases()).toHaveLength(5);
+  });
+
+  it('после замка чистит остатки убитого запуска', () => {
+    mkdirSync(join(root, '.incoming-dead'));
+    writeFileSync(join(root, '.incoming-dead/x'), 'x');
+    writeFileSync(join(root, '.upload-dead'), 'x');
+    writeFileSync(join(root, '.current-dead'), 'x');
+    expect(receive(A, archive('A')).status).toBe(0);
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('загрузка без конца (stdin не закрывается) — код 7 по таймауту, без остатков, замок свободен', async () => {
+    receive(A, archive('A'));
+    const before = current();
+    const child = spawn('bash', [SCRIPT, B], {
+      env: { ...process.env, UTILS_ROOT: root, UTILS_UPLOAD_TIMEOUT: '1' },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stderr = '';
+    child.stderr!.on('data', (d) => (stderr += d));
+    // Клиент жив и прислал начало, но stdin так и не закрывает.
+    child.stdin!.write(archive('B').subarray(0, 16));
+    const started = Date.now();
+    const code = await new Promise<number | null>((ok) => {
+      const timer = setTimeout(() => {
+        child.kill('SIGKILL');
+        ok(null);
+      }, 15_000);
+      child.on('exit', (c) => {
+        clearTimeout(timer);
+        ok(c);
+      });
+    });
+    child.stdin!.destroy();
+    expect(code).toBe(7);
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(stderr).toContain('загрузка не завершилась за 1 с');
+    expect(current()).toBe(before);
+    expect(releases()).toHaveLength(1);
+    expect(leftovers()).toEqual([]);
+    // Следующая выкладка не упирается в замок.
+    const next = receive(B, archive('B2'));
+    expect(next.status).toBe(0);
+    expect(served()).toBe('B2');
+  }, 30_000);
+
+  it('права: releases/ и релиз 755, файлы 644 даже при umask 077', () => {
+    const r = spawnSync('bash', ['-c', 'umask 077; exec bash "$0" "$1"', SCRIPT, A], {
+      input: archive('A'),
+      env: { ...process.env, UTILS_ROOT: root },
+    });
+    expect(r.status).toBe(0);
+    const mode = (p: string) => (statSync(p).mode & 0o777).toString(8);
+    const rel = join(root, current());
+    expect(mode(join(root, 'releases'))).toBe('755');
+    expect(mode(rel)).toBe('755');
+    expect(mode(join(rel, 'en'))).toBe('755');
+    expect(mode(join(rel, 'index.html'))).toBe('644');
+    expect(mode(join(rel, 'en/index.html'))).toBe('644');
+    expect(mode(join(rel, 'release.txt'))).toBe('644');
+  });
+
+  it('занятый замок — код 6, без изменений', async () => {
+    receive(A, archive('A'));
+    const before = current();
+    const hasFlock = spawnSync('sh', ['-c', 'command -v flock']).status === 0;
+    let holder: ReturnType<typeof spawn> | undefined;
+    if (hasFlock) {
+      holder = spawn('bash', ['-c', 'exec 9>"$1"; flock 9; echo held; exec sleep 30', 'x', join(root, '.lock')]);
+      await new Promise<void>((ok) => holder!.stdout!.once('data', () => ok()));
+    } else {
+      mkdirSync(join(root, '.lock.d'));
+    }
+    try {
+      expect(receive(B, archive('B')).status).toBe(6);
+      expect(current()).toBe(before);
+      expect(releases()).toHaveLength(1);
+    } finally {
+      holder?.kill();
+      rmSync(join(root, '.lock.d'), { recursive: true, force: true });
+    }
+  });
+});

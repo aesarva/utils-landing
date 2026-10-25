@@ -1,0 +1,24 @@
+---
+// 404: мир хаба, тексты на обоих языках; язык по пути неизвестен. Единственный h1 — русский заголовок.
+import { loadProducts } from '../lib/load';
+import { t } from '../i18n';
+import { pagePath } from '../lib/routes';
+import Shell from '../layouts/Shell.astro';
+import HubWorld from '../worlds/hub/HubWorld.astro';
+
+const products = await loadProducts();
+const ru = t('ru');
+const en = t('en');
+---
+
+<Shell lang="ru" title={`${ru.notFoundTitle} / ${en.notFoundTitle}`} description={ru.notFoundBody} isHub notFound>
+  <section>
+    <h1>{ru.notFoundTitle}</h1>
+    <p>{ru.notFoundBody} <a href={pagePath('ru')}>{ru.hub}</a></p>
+    <div lang="en">
+      <h2>{en.notFoundTitle}</h2>
+      <p>{en.notFoundBody} <a href={pagePath('en')}>{en.hub}</a></p>
+    </div>
+  </section>
+  <HubWorld lang="ru" products={products} heading="h2" />
+</Shell>
