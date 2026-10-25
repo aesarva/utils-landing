@@ -7,13 +7,23 @@
 # Архив проверяет и распаковывает один и тот же разборщик (python tarfile) за один проход: tar -x не вызывается,
 # поэтому расхождения разборщиков (обычный файл с именем на «/», битый заголовок посередине) не протащат член мимо проверок.
 # Коды: 0 — готово; 2 — плохой sha или нецелый срок; 3 — пустой stdin, а релиза нет; 4 — архив больше лимита, битый
-# или небезопасный (симлинки, хардлинки, устройства, fifo, sparse, абсолютные пути и «..», повторы имён, мусор после
-# конца архива), либо распаковка не уложилась в UTILS_EXTRACT_TIMEOUT секунд (по умолчанию 120);
+# или небезопасный (симлинки, хардлинки, устройства, fifo, sparse, абсолютные пути и «..», имена длиннее 1024 байт,
+# повторы имён, release.txt в любом регистре, раздутые или глобальные PAX-заголовки, ненулевые байты после последнего
+# члена), либо распаковка не уложилась в UTILS_EXTRACT_TIMEOUT секунд (по умолчанию 120);
 # 5 — в сборке нет index.html, en/index.html или 404.html; 6 — другая выкладка уже идёт (занят замок);
 # 7 — загрузка не завершилась за UTILS_UPLOAD_TIMEOUT секунд (по умолчанию 300): замок не держится вечно.
 set -euo pipefail
 # Рабочий каталог вызывающего может быть недоступен (runuser из /root): GNU find тогда падает.
 cd /
+# Локаль клиента (sshd AcceptEnv LANG LC_*) не должна менять поведение: C.UTF-8, где она есть, иначе C.
+# Кодировку имён в python отдельно задаёт -X utf8.
+LOCALES=$(locale -a 2> /dev/null || true)
+if grep -qiE '^c\.utf-?8$' <<< "$LOCALES"; then
+  export LC_ALL=C.UTF-8
+else
+  export LC_ALL=C
+fi
+unset LOCALES
 
 ROOT=${UTILS_ROOT:-/srv/utils/site}
 MAX=${UTILS_MAX_BYTES:-52428800}
@@ -111,7 +121,7 @@ prune() {
 # stdin (архив) передаётся в fd 3, потому что stdin python занят текстом скрипта.
 # Коды python: 0 — принят целиком; 7 — срок вышел; 8 — больше MAX.
 UPLOAD_RC=0
-python3 -I - "$UPLOAD" "$MAX" "$UPLOAD_TIMEOUT" 3<&0 << 'PY' || UPLOAD_RC=$?
+python3 -I -X utf8 - "$UPLOAD" "$MAX" "$UPLOAD_TIMEOUT" 3<&0 << 'PY' || UPLOAD_RC=$?
 import os, select, sys, time
 
 path, cap, timeout = sys.argv[1], int(sys.argv[2]), float(sys.argv[3])
@@ -164,39 +174,94 @@ fi
 
 # Проверка и распаковка — один проход одного разборщика: python tarfile в потоковом режиме читает распакованный
 # gzip-поток и сам пишет на диск ровно те члены, которые проверил; tar -x не вызывается.
-# Правила: только обычные файлы и каталоги; без абсолютных путей, «..», пустых имён и NUL; без release.txt
-# (его пишет приёмник); обычный файл с именем на «/» и повтор имени (файла или каталога) — отказ.
+# Правила: только обычные файлы и каталоги; без абсолютных путей, «..», пустых имён, NUL, имён длиннее 1024 байт
+# и глубже 32 компонентов; без release.txt в любом регистре (его пишет приёмник); обычный файл с именем на «/»,
+# отрицательный размер и повтор имени (файла или каталога) — отказ.
+# Служебные заголовки tarfile читает целиком в память до любых проверок, поэтому у них свой бюджет: PAX-заголовок
+# члена — не больше 64 КиБ, длинное имя GNU — не больше 1024 байт, глобальные PAX-заголовки (копируются в каждый
+# следующий член) и sparse — отказ ещё до чтения их данных. Подстраховка — RLIMIT_AS 512 МиБ (где он работает).
 # Каталоги создаются по одному компоненту относительно дескриптора родителя (O_DIRECTORY|O_NOFOLLOW),
 # файлы — O_CREAT|O_EXCL|O_NOFOLLOW: симлинк или уже существующий путь — отказ, а не запись мимо staging.
-# Лимиты: записанные байты — не больше UNPACK_MAX; членов вместе с неявными каталогами — не больше 20000;
-# распакованный поток — не больше UNPACK_MAX + 1 МиБ (огромные PAX/GNU-метаданные иначе выделились бы в памяти
-# раньше проверок); срок — EXTRACT_TIMEOUT. После конца архива поток дочитывается: в нём допустимы только нули.
-# Коды python: 0 — распакован; 9 — срок вышел; остальное — отказ (причина в stderr).
+# Права ставятся сразу при создании (umask 022): каталоги 755, файлы 644.
+# Лимиты: записанные байты плюс 4096 за каждый созданный файл и каталог (блок на диске, в том числе у неявных
+# каталогов) — не больше UNPACK_MAX; членов вместе с неявными каталогами — не больше 20000; распакованный поток —
+# не больше UNPACK_MAX + 1 МиБ.
+# Срок EXTRACT_TIMEOUT: SIGALRM завершает python сразу (os._exit), даже посреди долгого разбора заголовка gzip;
+# снаружи, где есть GNU timeout (сервер), python добивается SIGKILL через 5 с после срока.
+# Конец архива: от конца данных последнего принятого члена до конца потока допустимы только нули. Так битый
+# или отброшенный tarfile заголовок (он принял бы его за конец архива) не пройдёт молча.
+# Последним создаётся release.txt (O_EXCL: вариант имени в другом регистре на macOS — отказ, а не перезапись).
+# Коды: 0 — распакован; 9 — срок вышел (124/137 — убит внешним timeout); остальное — отказ (причина в stderr).
 EXTRACT_RC=0
-python3 -I - "$UPLOAD" "$INCOMING" "$UNPACK_MAX" "$EXTRACT_TIMEOUT" << 'PY' || EXTRACT_RC=$?
-import gzip, os, signal, sys, tarfile
+STAMP="$SHA $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+HARD_KILL=()
+if command -v timeout > /dev/null 2>&1; then
+  HARD_KILL=(timeout --signal=KILL $((EXTRACT_TIMEOUT + 5)))
+fi
+${HARD_KILL[@]+"${HARD_KILL[@]}"} python3 -I -X utf8 - "$UPLOAD" "$INCOMING" "$UNPACK_MAX" "$EXTRACT_TIMEOUT" "$STAMP" << 'PY' || EXTRACT_RC=$?
+import os, signal, sys
 
-path, dest, limit, timeout = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+# Срок — первым делом: обработчик выходит сразу, не дожидаясь, пока код вернётся в цикл.
+signal.signal(signal.SIGALRM, lambda *_: os._exit(9))
+signal.alarm(int(sys.argv[4]))
+
+import gzip, tarfile
+
+# Подстраховка по памяти: адресное пространство не больше 512 МиБ (на macOS RLIMIT_AS не ставится — пропуск).
+try:
+    import resource
+    resource.setrlimit(resource.RLIMIT_AS, (512 << 20, 512 << 20))
+except (ImportError, ValueError, OSError):
+    pass
+
+path, dest, limit, stamp = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[5]
 MAX_ENTRIES = 20000
-MAX_NAME = 4096
+MAX_NAME = 1024
+MAX_DEPTH = 32
+# Плата за каждый созданный файл или каталог: блок на диске, которого нет в размере данных.
+ENTRY_COST = 4096
+MAX_EXT = 64 * 1024
 CHUNK = 1 << 16
-# Сколько последних байт потока помнить: tarfile читает вперёд не больше записи (10 КиБ) и заголовка.
-TAIL = 1 << 16
+# Сколько последних байт потока помнить: после последнего члена tarfile читает не больше служебного заголовка
+# (до MAX_EXT), самого заголовка и записи вперёд (10 КиБ).
+TAIL = 1 << 20
 DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
 FILE_FLAGS = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+os.umask(0o022)
 
 
-class Timeout(BaseException):
-    """Срок распаковки вышел. BaseException: внутренние except Exception его не проглотят."""
+def show(s):
+    """Имя или текст ошибки для сообщения: не больше 200 символов, чтобы не раздувать stderr и лог CI."""
+    s = str(s)
+    return repr(s[:200]) + ('…' if len(s) > 200 else '')
 
 
-def on_alarm(signum, frame):
-    raise Timeout()
+class Guarded(tarfile.TarInfo):
+    """Заголовок с бюджетом на служебные записи: проверка — до того, как tarfile прочтёт их данные в память."""
+
+    def _proc_member(self, tf):
+        if self.size < 0:
+            raise tarfile.ReadError('отрицательный размер члена')
+        if self.type == tarfile.XGLTYPE:
+            raise tarfile.ReadError('глобальные PAX-заголовки не принимаются')
+        if self.type in (tarfile.XHDTYPE, tarfile.SOLARIS_XHDTYPE) and self.size > MAX_EXT:
+            raise tarfile.ReadError('PAX-заголовок больше %d байт' % MAX_EXT)
+        if self.type in (tarfile.GNUTYPE_LONGNAME, tarfile.GNUTYPE_LONGLINK) and self.size > MAX_NAME + 1:
+            raise tarfile.ReadError('длинное имя GNU больше %d байт' % MAX_NAME)
+        if self.type == tarfile.GNUTYPE_SPARSE:
+            raise tarfile.ReadError('sparse-файлы не принимаются')
+        return super()._proc_member(tf)
+
+    # Карты sparse из PAX (форматы 0.0, 0.1, 1.0) строятся в памяти до того, как член виден циклу.
+    def _proc_gnusparse_00(self, *args):
+        raise tarfile.ReadError('sparse-файлы не принимаются')
+
+    _proc_gnusparse_01 = _proc_gnusparse_10 = _proc_gnusparse_00
 
 
 class Capped:
     """Читает распакованный поток не дальше cap байт (превышение — исключение до выделения лишнего)
-    и помнит хвост отданного: по нему проверяется всё, что лежит после конца архива."""
+    и помнит хвост отданного: по нему проверяется всё, что лежит после последнего члена."""
 
     def __init__(self, f, cap):
         self.f, self.left, self.pos, self.tail = f, cap, 0, bytearray()
@@ -226,18 +291,30 @@ def bump():
         sys.exit('слишком много членов архива (вместе с неявными каталогами больше %d)' % MAX_ENTRIES)
 
 
+def charge(n):
+    """n байт на диск (данные или ENTRY_COST за созданную запись); сверх лимита — отказ сразу."""
+    global written
+    written += n
+    if written > limit:
+        sys.exit('распакованная сборка больше %d байт (с учётом %d байт на файл и каталог)' % (limit, ENTRY_COST))
+
+
 def parts_of(name):
     """Компоненты пути без пустых и «.»; небезопасное имя — отказ."""
-    if not name or '\0' in name or name.startswith('/') or len(name.encode('utf-8', 'surrogateescape')) > MAX_NAME:
-        sys.exit('небезопасный путь: %r' % name)
+    if not name or '\0' in name or name.startswith('/'):
+        sys.exit('небезопасный путь: %s' % show(name))
+    if len(name.encode('utf-8', 'surrogateescape')) > MAX_NAME:
+        sys.exit('имя длиннее %d байт: %s' % (MAX_NAME, show(name)))
     parts = [p for p in name.split('/') if p not in ('', '.')]
     if '..' in parts:
-        sys.exit('небезопасный путь: %r' % name)
+        sys.exit('небезопасный путь: %s' % show(name))
+    if len(parts) > MAX_DEPTH:
+        sys.exit('путь глубже %d компонентов: %s' % (MAX_DEPTH, show(name)))
     return parts
 
 
 def open_dir(parts):
-    """Дескриптор каталога dest/parts; недостающие каталоги создаются (0o755). Симлинк или файл
+    """Дескриптор каталога dest/parts; недостающие каталоги создаются (755). Симлинк или файл
     на пути не открывается (ELOOP/ENOTDIR) — исключение, то есть отказ."""
     fd = os.open(dest, DIR_FLAGS)
     try:
@@ -245,6 +322,7 @@ def open_dir(parts):
             try:
                 os.mkdir(p, 0o755, dir_fd=fd)
                 bump()
+                charge(ENTRY_COST)
             except FileExistsError:
                 pass
             nfd = os.open(p, DIR_FLAGS, dir_fd=fd)
@@ -264,6 +342,7 @@ def make_dir(parts):
     try:
         try:
             os.mkdir(parts[-1], 0o755, dir_fd=fd)
+            charge(ENTRY_COST)
         except FileExistsError:
             pass
         os.close(os.open(parts[-1], DIR_FLAGS, dir_fd=fd))
@@ -271,86 +350,111 @@ def make_dir(parts):
         os.close(fd)
 
 
-def write_file(tf, m, parts):
-    """Файл-член: создаётся заново (O_EXCL), копируется ровно m.size байт; записанное сразу идёт в лимит."""
-    global written
+def create(parts):
+    """Новый файл dest/parts (O_EXCL, 644): существующий путь в любом регистре — исключение."""
     fd = open_dir(parts[:-1])
     try:
         out = os.open(parts[-1], FILE_FLAGS, 0o644, dir_fd=fd)
     finally:
         os.close(fd)
+    os.fchmod(out, 0o644)
+    return out
+
+
+def write_all(out, data):
+    view = memoryview(data)
+    while view:
+        view = view[os.write(out, view):]
+
+
+def write_file(tf, m, parts):
+    """Файл-член: копируется ровно m.size байт; записанное сразу идёт в лимит."""
+    # Заявленный размер сверх лимита — отказ до создания файла (запись всё равно считается по факту).
+    if written + ENTRY_COST + m.size > limit:
+        sys.exit('распакованная сборка больше %d байт (с учётом %d байт на файл и каталог)' % (limit, ENTRY_COST))
+    out = create(parts)
+    charge(ENTRY_COST)
     try:
         src = tf.extractfile(m)
         left = m.size
         while left > 0:
             chunk = src.read(min(CHUNK, left))
             if not chunk:
-                sys.exit('член архива обрывается: %r' % m.name)
-            written += len(chunk)
-            if written > limit:
-                sys.exit('распакованная сборка больше %d байт' % limit)
-            view = memoryview(chunk)
-            while view:
-                view = view[os.write(out, view):]
+                sys.exit('член архива обрывается: %s' % show(m.name))
+            charge(len(chunk))
+            write_all(out, chunk)
             left -= len(chunk)
     finally:
         os.close(out)
 
 
-signal.signal(signal.SIGALRM, on_alarm)
-signal.alarm(timeout)
 try:
     with gzip.open(path, 'rb') as gz:
         stream = Capped(gz, limit + 1024 * 1024)
-        tf = tarfile.open(fileobj=stream, mode='r|', encoding='utf-8', errors='surrogateescape')
+        tf = tarfile.open(fileobj=stream, mode='r|', tarinfo=Guarded, encoding='utf-8', errors='surrogateescape')
         seen = set()
-        for m in tf:
+        # Позиция, где кончаются данные последнего принятого члена (с выравниванием до 512).
+        end = 0
+        while True:
+            m = tf.next()
+            # Python 3.9 копит все TarInfo в tf.members и в потоковом режиме: держим не больше одного.
+            tf.members.clear()
+            if m is None:
+                break
             bump()
             name = m.name
             parts = parts_of(name)
-            if parts == ['release.txt']:
-                sys.exit('release.txt пишет только приёмник')
+            if parts and parts[0].casefold() == 'release.txt':
+                sys.exit('release.txt пишет только приёмник: %s' % show(name))
             if m.type not in (tarfile.REGTYPE, tarfile.AREGTYPE, tarfile.DIRTYPE):
-                sys.exit('недопустимый тип члена архива: %r' % name)
+                sys.exit('недопустимый тип члена архива: %s' % show(name))
             if m.sparse is not None or any(k.startswith('GNU.sparse') for k in m.pax_headers):
-                sys.exit('sparse-файлы не принимаются: %r' % name)
+                sys.exit('sparse-файлы не принимаются: %s' % show(name))
+            if m.size < 0:
+                sys.exit('отрицательный размер члена: %s' % show(name))
             key = '/'.join(parts)
             if key in seen:
-                sys.exit('повтор имени в архиве: %r' % name)
+                sys.exit('повтор имени в архиве: %s' % show(name))
             seen.add(key)
             if m.isdir():
                 if m.size:
-                    sys.exit('каталог с данными: %r' % name)
+                    sys.exit('каталог с данными: %s' % show(name))
                 make_dir(parts)
             else:
-                if not parts or name.endswith('/'):
-                    sys.exit('обычный файл с именем каталога: %r' % name)
+                # «pad/», «q/.» и «.» — имена каталога у обычного файла.
+                if not parts or name.split('/')[-1] in ('', '.'):
+                    sys.exit('обычный файл с именем каталога: %s' % show(name))
                 write_file(tf, m, parts)
-        # Конец по tarfile — нулевой блок, битый заголовок или обрыв. Всё от этой позиции до конца потока
-        # (сам блок конца, остаток записи) должно быть нулями: иначе за «концом» лежат данные,
-        # которые другой разборщик прочёл бы как члены.
-        end = tf.offset
+            end = m.offset_data + (m.size + 511) // 512 * 512
+        # tarfile кончает архив на нулевом блоке, но и на битом заголовке или обрыве, а заголовок с негодным
+        # PAX-размером может молча отбросить. Поэтому граница — не его позиция, а конец данных последнего
+        # принятого члена: всё дальше (блоки конца, остаток записи) должно быть нулями.
         start = stream.pos - len(stream.tail)
         if not start <= end <= stream.pos:
             sys.exit('не удалось проверить конец архива')
         rest = bytes(stream.tail[end - start:])
         while True:
             if rest.count(0) != len(rest):
-                sys.exit('после конца архива есть данные, кроме нулей')
+                sys.exit('после последнего члена архива есть данные, кроме нулей')
             rest = stream.read(CHUNK)
             if not rest:
                 break
+    out = create(['release.txt'])
+    try:
+        write_all(out, (stamp + '\n').encode())
+    finally:
+        os.close(out)
     signal.alarm(0)
-except Timeout:
-    sys.exit(9)
 except SystemExit:
     raise
+except MemoryError:
+    sys.exit('архиву не хватило памяти')
 except Exception as e:
-    sys.exit('архив не читается или не распаковывается: %s' % e)
+    sys.exit('архив не читается или не распаковывается: %s' % show(e))
 PY
 case $EXTRACT_RC in
   0) ;;
-  9)
+  9 | 124 | 137)
     echo "utils-receive: распаковка не завершилась за $EXTRACT_TIMEOUT с" >&2
     exit 4
     ;;
@@ -359,8 +463,8 @@ case $EXTRACT_RC in
     exit 4
     ;;
 esac
-# Второй рубеж: после распаковки не должно быть ничего, кроме файлов и каталогов.
-if [[ -n $(find "$INCOMING" ! -type f ! -type d -print -quit) ]]; then
+# Второй рубеж: после распаковки не должно быть ничего, кроме файлов и каталогов; сбой самого find — тоже отказ.
+if ! BAD=$(find "$INCOMING" ! -type f ! -type d -print -quit 2> /dev/null) || [[ -n $BAD ]]; then
   echo "utils-receive: в сборке есть не файлы и не каталоги" >&2
   exit 4
 fi
@@ -371,11 +475,9 @@ for f in index.html en/index.html 404.html; do
   fi
 done
 
-printf '%s %s\n' "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$INCOMING/release.txt"
-# nginx читает релиз: каталоги 755, файлы 644, независимо от umask и прав в архиве.
-find "$INCOMING" -type d -exec chmod 755 {} +
-find "$INCOMING" -type f -exec chmod 644 {} +
-NAME=$SHA.$(python3 -I -c 'import time; print("%020d" % time.time_ns())')-$$
+# nginx читает релиз: содержимое уже 755/644 с распаковки, сам каталог из mktemp — 700.
+chmod 755 "$INCOMING"
+NAME=$SHA.$(python3 -I -X utf8 -c 'import time; print("%020d" % time.time_ns())')-$$
 mv "$INCOMING" "$RELEASES/$NAME"
 INCOMING=""
 switch_current "$NAME"

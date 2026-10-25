@@ -89,6 +89,11 @@ def hdr(name, size=0, type=tarfile.REGTYPE):
     return ti.tobuf(tarfile.USTAR_FORMAT, 'utf-8', 'surrogateescape')
 def member(name, data=b'', type=tarfile.REGTYPE):
     return hdr(name, len(data), type) + data + b'\\0' * (-len(data) % 512)
+def rawpax(records, type=tarfile.XHDTYPE):
+    return hdr('././@PaxHeader', len(records), type) + records + b'\\0' * (-len(records) % 512)
+def paxmember(name, data=b'', headers=None):
+    ti = tarfile.TarInfo(name); ti.size = len(data); ti.pax_headers = headers or {}
+    return ti.tobuf(tarfile.PAX_FORMAT, 'utf-8', 'surrogateescape') + data + b'\\0' * (-len(data) % 512)
 SITE = member('index.html', b'X') + member('en/index.html', b'en') + member('404.html', b'404')
 END = b'\\0' * 1024
 ${snippet}
@@ -212,11 +217,15 @@ describe('utils-receive', () => {
       ['файл ./release.txt', [{ name: './release.txt', kind: 'file' }]],
       ['логический размер больше лимита', [{ name: 'big', kind: 'file', size: 2 * 1024 * 1024 }]],
       ['обычный файл с именем на «/»', [{ name: 'pad/', kind: 'file' }]],
+      ['обычный файл с именем на «/.»', [{ name: 'q/.', kind: 'file' }]],
       ['повтор имени: второй index.html', [{ name: 'index.html', kind: 'file' }]],
       ['повтор имени: файл и ./файл', [{ name: 'x', kind: 'file' }, { name: './x', kind: 'file' }]],
       ['повтор имени: каталог, затем файл', [{ name: 'dup', kind: 'dir' }, { name: 'dup', kind: 'file' }]],
       ['повтор имени: каталог дважды', [{ name: 'dup', kind: 'dir' }, { name: 'dup/', kind: 'dir' }]],
       ['файл, затем путь сквозь него', [{ name: 'f', kind: 'file' }, { name: 'f/x', kind: 'file' }]],
+      // На macOS (регистронезависимая ФС) RELEASE.TXT иначе перезаписался бы настоящим release.txt.
+      ['файл RELEASE.TXT', [{ name: 'RELEASE.TXT', kind: 'file' }]],
+      ['каталог Release.txt с файлом', [{ name: 'Release.txt/x', kind: 'file' }]],
       // Каждый размер честный, но сумма записанного (300 × 4 КиБ) больше лимита в 1 МиБ.
       ['много мелких файлов сверх лимита', Array.from({ length: 300 }, (_, i) => ({ name: `f/${i}`, kind: 'file' as const, size: 4096 })), { message: 'больше 1048576 байт' }],
     ];
@@ -290,7 +299,7 @@ raw = SITE + bytes(bad) + END`);
       ['после полной записи нулей', `SITE + b'\\0' * 10240 + b'\\1'`],
     ]) {
       it(`мусор ${what} — код 4`, () => {
-        expect(rejected(rawArchive(`raw = ${raw}`))).toContain('после конца архива');
+        expect(rejected(rawArchive(`raw = ${raw}`))).toContain('после последнего члена архива');
       });
     }
 
@@ -307,21 +316,111 @@ raw = SITE + bytes(bad) + END`);
       expect(served()).toBe('X');
     });
 
-    it('распаковка дольше UTILS_EXTRACT_TIMEOUT — код 4 по сроку, без остатков, замок свободен', () => {
-      // 2000 файлов на глубине 2000 каталогов: каждый член проходит весь путь, это заведомо дольше секунды.
-      const input = rawArchive(`
-deep = 'a/' * 2000
-parts = [SITE]
-for i in range(2000):
-    ti = tarfile.TarInfo(deep + 'f%d' % i); ti.size = 0
-    parts.append(ti.tobuf(tarfile.PAX_FORMAT, 'utf-8', 'surrogateescape'))
-raw = b''.join(parts) + END`);
+    it('распаковка дольше UTILS_EXTRACT_TIMEOUT (огромное поле FNAME в gzip) — код 4 по сроку, без остатков, замок свободен', () => {
+      // Заголовок gzip с именем файла в 150 МиБ: python разбирает его побайтно дольше секунды на любой машине,
+      // а срок обязан прервать и такой разбор, не дожидаясь возврата в цикл распаковки.
+      const gz = rawArchive(`raw = SITE + END`);
+      const bomb = Buffer.concat([
+        Buffer.from([0x1f, 0x8b, 8, 8, 0, 0, 0, 0, 0, 3]), Buffer.alloc(150 << 20, 0x61), Buffer.from([0]), gz.subarray(10),
+      ]);
       const started = Date.now();
-      const stderr = rejected(input, { UTILS_EXTRACT_TIMEOUT: '1', UTILS_MAX_UNPACKED: String(100 * 1024 * 1024) });
+      const stderr = rejected(bomb, { UTILS_EXTRACT_TIMEOUT: '1', UTILS_MAX_BYTES: String(200 << 20) });
       expect(stderr).toContain('распаковка не завершилась за 1 с');
-      expect(Date.now() - started).toBeLessThan(15_000);
+      expect(Date.now() - started).toBeLessThan(10_000);
       expect(receive(B, archive('B')).status).toBe(0);
     }, 30_000);
+
+    it('путь глубже 32 компонентов — код 4', () => {
+      const stderr = rejected(rawArchive(`raw = SITE + member('/'.join(['d'] * 33) + '/f', b'x') + END`));
+      expect(stderr).toContain('путь глубже 32 компонентов');
+    });
+
+    it('путь ровно в 32 компонента принимается', () => {
+      expect(receive(A, rawArchive(`raw = SITE + member('/'.join(['d'] * 31) + '/f', b'x') + END`)).status).toBe(0);
+    });
+
+    it('неявные каталоги сверх предела записей — код 4, хотя членов всего 700', () => {
+      // Каждый член тянет за собой 31 новый неявный каталог: 700 × 32 > 20000.
+      const stderr = rejected(
+        rawArchive(`raw = SITE + b''.join(member('i%03d/' % i + 'x/' * 30 + 'f') for i in range(700)) + END`),
+        { UTILS_MAX_UNPACKED: String(200 << 20) },
+      );
+      expect(stderr).toContain('слишком много членов');
+    });
+
+    it('пустые файлы платят 4096 байт за запись: 300 пустых файлов сверх лимита в 1 МиБ — код 4', () => {
+      const stderr = rejected(rawArchive(`raw = SITE + b''.join(member('e/%d' % i) for i in range(300)) + END`));
+      expect(stderr).toContain('больше 1048576 байт');
+    });
+
+    it('PAX-заголовок из мегабайта мелких записей — код 4 до разбора записей', () => {
+      // 100 МиБ таких записей раздували tarfile до 1,75 ГБ и проходили; бюджет PAX-заголовка — 64 КиБ.
+      const stderr = rejected(rawArchive(`raw = rawpax(b'5 a=\\n' * ((1 << 20) // 5)) + member('x.txt', b'x') + SITE + END`));
+      expect(stderr).toContain('PAX-заголовок больше');
+    });
+
+    it('глобальный PAX-заголовок — код 4', () => {
+      // tarfile копирует глобальные записи в каждый следующий член: память росла как ключи × члены.
+      const stderr = rejected(rawArchive(`raw = rawpax(b'13 comment=x\\n', tarfile.XGLTYPE) + SITE + END`));
+      expect(stderr).toContain('глобальные PAX');
+    });
+
+    it('длинное имя GNU больше 1024 байт — код 4, имя не попадает в stderr целиком', () => {
+      const stderr = rejected(rawArchive(`
+name = b'a' * 200000
+raw = SITE + hdr('././@LongLink', len(name) + 1, tarfile.GNUTYPE_LONGNAME) + name + b'\\0' * (-(len(name) + 1) % 512 + 1) + member('short') + END`));
+      expect(stderr).toContain('длинное имя GNU');
+      expect(stderr.length).toBeLessThan(2000);
+    });
+
+    it('PAX-путь в 60 КБ — код 4, в сообщении не больше 200 символов имени', () => {
+      const stderr = rejected(rawArchive(`raw = SITE + paxmember('x' * 60000, b'1') + END`));
+      expect(stderr).toContain('имя длиннее 1024 байт');
+      expect(stderr).toContain('…');
+      expect(stderr.length).toBeLessThan(2000);
+    });
+
+    it('путь около 1100 байт — код 4 с понятной причиной, а не сбой find', () => {
+      const stderr = rejected(rawArchive(`raw = SITE + paxmember('/'.join(['d' * 200] * 5) + '/' + 'f' * 90, b'1') + END`));
+      expect(stderr).toContain('имя длиннее 1024 байт');
+    });
+
+    it('длинный путь (750 байт) принимается, права 755/644 поставлены при распаковке', () => {
+      // Не ближе к 1024: на macOS PATH_MAX 1024 и для полного пути, который читает сам тест.
+      const name = [...Array(3)].map(() => 'd'.repeat(240)).join('/') + '/' + 'f'.repeat(30);
+      const r = spawnSync('bash', ['-c', 'umask 077; exec bash "$0" "$1"', SCRIPT, A], {
+        input: rawArchive(`raw = SITE + paxmember(${JSON.stringify(name)}, b'deep') + END`),
+        env: { ...process.env, UTILS_ROOT: root },
+      });
+      expect(r.status, String(r.stderr)).toBe(0);
+      const rel = join(root, current());
+      expect(readFileSync(join(rel, name), 'utf8')).toBe('deep');
+      expect((statSync(join(rel, name)).mode & 0o777).toString(8)).toBe('644');
+      expect((statSync(join(rel, name, '..')).mode & 0o777).toString(8)).toBe('755');
+    });
+
+    it('sparse в PAX (формат 1.0) — код 4', () => {
+      const stderr = rejected(rawArchive(`
+h = {'GNU.sparse.major': '1', 'GNU.sparse.minor': '0', 'GNU.sparse.name': 'sp', 'GNU.sparse.realsize': '1024'}
+raw = SITE + paxmember('GNUSparseFile.0/sp', b'1\\n0\\n512\\n'.ljust(512, b'\\0') + b'\\0' * 512, h) + END`));
+      expect(stderr).toContain('sparse');
+    });
+
+    for (const [what, raw] of [
+      ['пустой член с PAX size=-1 после настоящих', `SITE + paxmember('n', b'', {'size': '-1'}) + END`],
+      ['член с PAX size=-512, за ним ещё член', `SITE + paxmember('n', b'n', {'size': '-512'}) + member('after.html', b'A') + END`],
+    ]) {
+      it(`${what} — код 4 (3.13 молча отбрасывал член, 3.9 писал пустой файл)`, () => {
+        expect(rejected(rawArchive(`raw = ${raw}`))).toContain('отклонён');
+      });
+    }
+
+    it('локаль клиента (KOI8-R через AcceptEnv) не меняет имена файлов: UTF-8 остаётся UTF-8', () => {
+      const env = { LANG: 'ru_RU.KOI8-R', LC_ALL: 'ru_RU.KOI8-R', LC_CTYPE: 'ru_RU.KOI8-R' };
+      const r = receive(A, rawArchive(`raw = SITE + member('img/логотип.svg', b'<svg/>') + END`), env);
+      expect(r.status, String(r.stderr)).toBe(0);
+      expect(readdirSync(join(root, current(), 'img'), { encoding: 'buffer' })).toEqual([Buffer.from('логотип.svg')]);
+    });
 
     it('нецелый UTILS_EXTRACT_TIMEOUT — код 2', () => {
       expect(receive(A, archive('A'), { UTILS_EXTRACT_TIMEOUT: '1.5' }).status).toBe(2);
