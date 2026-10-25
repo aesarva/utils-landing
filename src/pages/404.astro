@@ -1,10 +1,13 @@
 ---
-// 404: мир хаба, тексты на обоих языках; язык по пути неизвестен. Единственный h1 — русский заголовок.
+// 404: мир хаба, тексты на обоих языках; язык по пути неизвестен. Единственный h1 — русский заголовок,
+// в шапке лейбла имя команды — абзац. Ниже — весь каталог, чтобы было куда вернуться.
 import { loadProducts } from '../lib/load';
 import { t } from '../i18n';
 import { pagePath } from '../lib/routes';
 import Shell from '../layouts/Shell.astro';
 import HubWorld from '../worlds/hub/HubWorld.astro';
+import HubMasthead from '../worlds/hub/HubMasthead.astro';
+import HubNavLinks from '../worlds/hub/HubNavLinks.astro';
 
 const products = await loadProducts();
 const ru = t('ru');
@@ -12,13 +15,70 @@ const en = t('en');
 ---
 
 <Shell lang="ru" title={`${ru.notFoundTitle} / ${en.notFoundTitle}`} description={ru.notFoundBody} isHub notFound>
-  <section>
-    <h1>{ru.notFoundTitle}</h1>
-    <p>{ru.notFoundBody} <a href={pagePath('ru')}>{ru.hub}</a></p>
-    <div lang="en">
-      <h2>{en.notFoundTitle}</h2>
+  <HubMasthead slot="masthead" lang="ru" heading="p" />
+  <HubNavLinks slot="nav-links" lang="ru" last />
+  <section class="notfound">
+    <p class="notfound-code ink" aria-hidden="true">404</p>
+    <div class="notfound-text">
+      <h1 class="notfound-title ink">{ru.notFoundTitle}</h1>
+      <p>{ru.notFoundBody} <a href={pagePath('ru')}>{ru.hub}</a></p>
+    </div>
+    <div class="notfound-text" lang="en">
+      <h2 class="notfound-title ink">{en.notFoundTitle}</h2>
       <p>{en.notFoundBody} <a href={pagePath('en')}>{en.hub}</a></p>
     </div>
   </section>
-  <HubWorld lang="ru" products={products} heading="h2" />
+  <HubWorld lang="ru" products={products} />
 </Shell>
+
+<style>
+  /* Ошибка как пустой номер каталога: «404» в масштабе номеров CT, тексты на двух языках рядом. */
+  .notfound {
+    display: grid;
+    grid-template-columns: calc(434 * var(--u)) 1fr 1fr;
+    column-gap: calc(32 * var(--u));
+    align-items: end;
+    margin: 0 var(--gutter);
+    padding: calc(10 * var(--u)) 0 calc(28 * var(--u));
+    border-bottom: var(--rule) solid var(--ink);
+  }
+  .notfound-code {
+    margin: 0;
+    font-family: var(--display);
+    font-size: calc(254 * var(--u));
+    line-height: 0.96;
+    letter-spacing: -0.04em;
+    color: transparent;
+    -webkit-text-stroke: calc(4 * var(--u)) var(--ink);
+  }
+  .notfound-title {
+    margin: 0 0 calc(10 * var(--u));
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: calc(56 * var(--u));
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .notfound-text p {
+    max-width: 34ch;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: max(calc(21 * var(--u)), 15px);
+    line-height: 1.3;
+  }
+
+  @media (max-width: 63.99rem) {
+    .notfound {
+      grid-template-columns: 1fr;
+      row-gap: 18px;
+      padding: 16px 0 24px;
+    }
+    .notfound-code {
+      font-size: clamp(110px, 32vw, 220px);
+      -webkit-text-stroke-width: 2px;
+    }
+    .notfound-title {
+      font-size: clamp(32px, 9vw, 48px);
+    }
+  }
+</style>

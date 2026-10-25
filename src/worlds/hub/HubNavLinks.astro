@@ -6,8 +6,10 @@ import { t } from '../../i18n';
 
 interface Props {
   lang: Lang;
+  /** Ссылки — последние в навигации (на 404 нет переключателя языка): без замыкающей точки. */
+  last?: boolean;
 }
-const { lang } = Astro.props;
+const { lang, last = false } = Astro.props;
 const d = t(lang);
 ---
 
@@ -16,4 +18,4 @@ const d = t(lang);
 <a href={ORG.github}>{d.footerGithub}</a>
 <span class="nav-dot" aria-hidden="true">·</span>
 <a href={`mailto:${ORG.email}`}>{ORG.email}</a>
-<span class="nav-dot" aria-hidden="true">·</span>
+{!last && <span class="nav-dot" aria-hidden="true">·</span>}
