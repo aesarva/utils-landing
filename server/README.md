@@ -149,3 +149,18 @@ ssh -i ~/.ssh/serverspace root@185.36.144.150 \
 абсолютные пути, `..`, член `release.txt`, больше 20000 членов, раздутые PAX-метаданные); 5 — в сборке нет `index.html`, `en/index.html` или `404.html`; 6 — идёт другая выкладка (занят замок `/srv/utils/site/.lock`), повторить позже;
 7 — загрузка не завершилась за `UTILS_UPLOAD_TIMEOUT` секунд (по умолчанию 300): клиент держал stdin открытым,
 приёмник вышел и освободил замок. CI повторяет только код 6; 7, как и остальные ненулевые коды, — сразу сбой.
+
+## Состояние
+
+Применено 2026-10-25 (шаги 1–6):
+
+- `utils-http.conf` и `utils-https.conf` в `sites-available`, симлинки в `sites-enabled`; `nginx -t` прошёл,
+  `atlas.hollow-haven.com` и `cyber-tech.online` после reload отвечают как раньше.
+- Сертификат Let's Encrypt (ECC) для `utils.cyber-tech.online`, действует до 2027-01-23; продление — cron `acme.sh`.
+- Пользователь `utils-deploy`, `/srv/utils` (root), `/srv/utils/site` (utils-deploy), приёмник в `/usr/local/bin`.
+  Linux-ветки приёмника (flock, `mv -T`, повторная выкладка того же sha, откат, код 6) проверены во временном
+  корне от `runuser`; запуск из недоступного рабочего каталога исправлен (`cd /`).
+- Ключ CI ограничен `restrict,command=…`; окружение `production` (только `develop`) с секретами
+  `UTILS_DEPLOY_KEY` и `UTILS_KNOWN_HOSTS`; локальная копия ключа удалена.
+- Первая выкладка `3d336da` прошла: сборка, выкладка, проверка коммита и `releases.json`, смоук.
+- HSTS пока не включён: сертификат проверен, включение ждёт решения пользователя.

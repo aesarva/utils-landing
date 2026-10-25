@@ -382,7 +382,7 @@ tests/unit/*.test.ts  tests/unit/fixtures/  tests/e2e/*.spec.ts
 Внешние действия: создание репозитория, окружение и секреты, изменения на сервере. **Перед Step 1 спросить пользователя явное «да».**
 Порядок важен: сервер, окружение и секреты готовы **до** первого push `develop`, иначе первые запуски `publish.yml` красные.
 
-- [ ] **Step 1: Репозиторий без запуска CI.** Влить `chore/scaffold` и последующие ветки в `develop` (`--no-ff`). `gh repo create aesarva/utils-landing --private`, `git remote add origin git@github.com:aesarva/utils-landing.git`, `git push -u origin main` (push в `main` workflow не запускает). `develop` пока не пушить.
+- [ ] **Step 1: Репозиторий без запуска CI.** Влить `chore/scaffold` и последующие ветки в `develop` (`--no-ff`). `gh repo create aesarva/utils-landing --public` (пользователь выбрал публичный, 2026-10-25), `git remote add origin git@github.com:aesarva/utils-landing.git`, `git push -u origin main` (push в `main` workflow не запускает). `develop` пока не пушить.
 - [ ] **Step 2: Сервер** (`ssh -i ~/.ssh/serverspace root@185.36.144.150`): `server/README.md`, шаги 1–5 (http-конфиг, сертификат, https-конфиг, пользователь и приёмник, ключ CI). Ключ выкладки генерировать в scratchpad: `ssh-keygen -t ed25519 -N '' -C utils-deploy-ci -f <scratchpad>/utils-deploy-key` (путь подставить в команды README вместо `/tmp`). Перед каждым `systemctl reload nginx` — `nginx -t`. Проверить, что `atlas.hollow-haven.com` и `cyber-tech.online` после reload отвечают как раньше (`curl -sI` до и после).
 - [ ] **Step 3: Окружение `production` и секреты** (`server/README.md`, шаг 6):
   - окружение `production`, выкладка разрешена только из ветки `develop`:

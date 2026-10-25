@@ -189,8 +189,8 @@ tagline:
 ### Репозиторий и ветки
 
 `git init` в `utils-landing`, ветки `main` и `develop`. Работа ведётся в ветках, они вливаются
-в `develop` через `merge --no-ff`. Remote — новый приватный `aesarva/utils-landing`
-(создаётся после утверждения плана). Ветка по умолчанию на GitHub — `develop`: расписание
+в `develop` через `merge --no-ff`. Remote — публичный `aesarva/utils-landing`
+(решение пользователя 2026-10-25: код сайта не секретный, публичному репозиторию бесплатны минуты Actions и окружения). Ветка по умолчанию на GitHub — `develop`: расписание
 GitHub Actions запускается только с ветки по умолчанию.
 
 ### CI — `.github/workflows/publish.yml`
