@@ -1,0 +1,5 @@
+{
+  "source": "ochre/docs/images/menubar-light.png @ 845c599 (src/assets/products/ochre/menubar-light.png)",
+  "derivation": "Two segments of the real menu bar screenshot, unchanged pixels: the mini die map (x 0–62) and the temperature 67° (x 317–359), joined with the app's own 12 px (2x) gap between segments. Ochre lets the user pick menu bar segments; this is the mini map + temperature configuration.",
+  "note": "Not generated."
+}

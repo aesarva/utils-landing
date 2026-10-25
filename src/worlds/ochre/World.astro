@@ -20,7 +20,7 @@ import icon from '../../../assets/plates/ochre-icon.png';
 import shotPanel from '../../assets/products/ochre/hero.jpg';
 import shotCpu from '../../assets/products/ochre/tab-cpu.jpg';
 import shotSensors from '../../assets/products/ochre/tab-sensors.jpg';
-import menubar from '../../assets/products/ochre/menubar-light.png';
+import menubar from '../../../assets/plates/ochre-menubar.png';
 import Flaps from './Flaps.astro';
 import { DEMO, gpuLit, heatColor, tileInk } from './board';
 import { OCHRE_COPY, type Tab } from './copy';
@@ -240,7 +240,7 @@ const FACT_PICTO = [
             <p>{m.text}</p>
             {i === 0 && (
               <span class="oc-menubar">
-                <Image src={menubar} alt={c.menubarAlt} width={270} densities={[1, 2]} />
+                <Image src={menubar} alt={c.menubarAlt} width={88} densities={[1, 2]} />
               </span>
             )}
           </li>
@@ -962,7 +962,7 @@ const FACT_PICTO = [
     line-height: calc(25 * var(--u));
     color: var(--ink-dim);
   }
-  /* Скриншот значка — на светлой полосе, как в светлой строке меню (текст на нём чёрный). */
+  /* Значок в конфигурации «мини-кристалл + температура» — на светлой полосе, как в светлой строке меню. */
   .oc-menubar {
     display: inline-block;
     margin-top: calc(18 * var(--u));
@@ -972,7 +972,7 @@ const FACT_PICTO = [
   }
   .oc-menubar img {
     display: block;
-    width: calc(270 * var(--u));
+    width: calc(88 * var(--u));
     height: auto;
   }
   /* Посадка — в таком же корпусе, как табло наверху: второе скачивание стоит в мире, а не на голом фоне. */
@@ -1327,7 +1327,7 @@ const FACT_PICTO = [
       line-height: 22px;
     }
     .oc-menubar img {
-      width: 220px;
+      width: 72px;
     }
     .oc-install-body {
       grid-template-columns: 1fr;

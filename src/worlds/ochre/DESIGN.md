@@ -259,7 +259,7 @@ On mobile each kind switches to fixed px (for example name 16 × 28px at 18px, d
 ### Facts strip, screenshots, "Also on board", install steps
 - **Facts:** three items with 42u line icons (stroke 1.4), a 20u/600 title and `ink-dim` text, divided by 1px hairlines.
 - **Screenshots:** real app renders with 12u radius and the screenshot shadow. Captions are a label flap title and `ink-dim` text.
-- **Menubar shot:** sits on a light strip (#e7e2d8) because the capture is of the light menu bar.
+- **Menubar shot:** `assets/plates/ochre-menubar.png`, the mini die map and temperature cut unchanged from the real light-menu-bar screenshot (provenance in its .json). It sits on a light strip (#e7e2d8) because the capture is of the light menu bar. Show only this configuration, not every segment.
 - **Install steps:** numbered on step flaps (46 × 52u, Barlow 700, split line).
 
 ### Shell parts in this world

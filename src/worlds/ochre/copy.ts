@@ -110,7 +110,7 @@ export const OCHRE_COPY: Record<Lang, OchreCopy> = {
         text: 'Самые активные процессы по CPU или памяти. Клик по строке копирует PID.',
       },
     ],
-    menubarAlt: 'Значок в строке меню: мини-кристалл, CPU 37%, RAM 62%, 67°',
+    menubarAlt: 'Значок в строке меню: мини-кристалл и температура 67°',
     installHead: 'Как установить',
     steps: [
       'Скачайте DMG.',
@@ -188,7 +188,7 @@ export const OCHRE_COPY: Record<Lang, OchreCopy> = {
         text: 'The busiest processes by CPU or memory. Click a row to copy its PID.',
       },
     ],
-    menubarAlt: 'Menu bar item: a mini die map, CPU 37%, RAM 62%, 67°',
+    menubarAlt: 'Menu bar item: a mini die map and the temperature, 67°',
     installHead: 'How to install',
     steps: [
       'Download the DMG.',
