@@ -19,9 +19,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@fontsource-variable/league-gothic": "^5.3.0",
     "@fontsource/anton": "^5.3.0",
-    "@fontsource/bebas-neue": "^5.3.0",
     "@fontsource/fira-sans-extra-condensed": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/oswald": "^5.3.0",
