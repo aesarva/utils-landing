@@ -1,0 +1,5 @@
+{
+  "source": "lidless/App/Resources/AppIcon.icon @ af8d8a5 (develop, beacon icon)",
+  "tool": "ictool --export-image --platform macOS --rendition Default --width 256 --height 256 --scale 2",
+  "note": "The Lidless app icon rendered from its Icon Composer source. The beacon artwork was made by the lidless session from this page's comp at the user's request; not yet in a release (ships with 0.4.1)."
+}
