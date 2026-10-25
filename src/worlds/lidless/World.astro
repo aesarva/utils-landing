@@ -117,9 +117,6 @@ const SHOTS = [
       }
     </div>
 
-    <div class="ld-desk" aria-hidden="true">
-      <Image src={studio} alt="" widths={[780, 1152]} sizes="100vw" />
-    </div>
     <p class="ld-caption">
       <Image class="ld-tape" src={tape} alt="" width={324} densities={[1, 2]} />
       <span>{c.caption}</span>
@@ -322,7 +319,7 @@ const SHOTS = [
   }
   :root[data-world='lidless'] .lang-switch {
     font-size: calc(16 * var(--u));
-    font-stretch: 88%;
+    font-stretch: 80%;
     color: var(--ink);
   }
   :root[data-world='lidless'] .lang-switch a {
@@ -493,10 +490,14 @@ const SHOTS = [
     position: absolute;
     left: 0;
     right: 0;
-    bottom: calc(18 * var(--u));
+    bottom: 11%;
     font-size: calc(18.5 * var(--u));
     text-align: center;
     color: var(--ink);
+  }
+  /* Подпись нагрева в макете сдвинута вправо, к шкале. */
+  .ld-meter-heat .ld-meter-label {
+    left: calc(22 * var(--u));
   }
 
   /* Пульт справа: табличка, сессии, режим крышки, правила, скачивание. */
@@ -710,7 +711,12 @@ const SHOTS = [
     width: calc(486 * var(--u));
     margin: calc(13 * var(--u)) 0 0;
     padding-top: calc(12 * var(--u));
-    border-top: 1px solid #4f4a47;
+    /* Гравированная канавка, как в макете: светлая грань над тёмной, по краям — почти чёрное. */
+    border-top: 1px solid #676561;
+    box-shadow:
+      0 -1px 0 #090301,
+      inset 0 1px 0 #544f4e,
+      inset 0 2px 0 #0a0302;
     font-size: calc(15.5 * var(--u));
     font-stretch: 92%;
     letter-spacing: -0.01em;
@@ -1069,10 +1075,6 @@ const SHOTS = [
   .ld-source:hover {
     text-decoration-color: var(--ink);
   }
-  /* Стол с закрытым ноутбуком: на десктопе он часть фото студии, на телефоне — отдельный кадр. */
-  .ld-desk {
-    display: none;
-  }
   /* Студийная стена продолжается под первым экраном, приглушённо. */
   .ld-app {
     position: relative;
@@ -1104,8 +1106,14 @@ const SHOTS = [
       inset: auto;
       translate: none;
     }
+    /* Фото студии прижато к низу: стол с закрытым ноутбуком — под индикаторами, над подписью;
+       верх фото растворяется в ночной стене, чтобы она не повторялась. */
     .ld-studio {
-      object-position: 45% 100%;
+      inset: auto auto 0 50%;
+      width: 760px;
+      height: auto;
+      translate: -47% 0;
+      mask-image: linear-gradient(transparent, #000 40%);
     }
     .ld-hero::before {
       content: '';
@@ -1253,33 +1261,17 @@ const SHOTS = [
       font-size: 10px;
     }
     .ld-meter-label {
-      bottom: 11px;
+      bottom: 15%;
       font-size: 13px;
-    }
-    .ld-desk {
-      order: 4;
-      display: block;
-      position: relative;
-      height: 118px;
-      margin: 10px -16px 0;
-      overflow: hidden;
-    }
-    .ld-desk img {
-      position: absolute;
-      left: 50%;
-      bottom: -34px;
-      width: 760px;
-      max-width: none;
-      height: auto;
-      translate: -47% 0;
     }
     .ld-caption {
       order: 5;
+      margin-bottom: -22px;
       align-self: center;
       left: auto;
       min-width: 0;
       height: 40px;
-      margin-top: -18px;
+      margin-top: 132px;
       padding: 0 18px;
       font-size: 24px;
     }
