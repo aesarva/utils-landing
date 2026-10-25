@@ -1,5 +1,5 @@
 ---
-// Подвал: организация, ссылка на GitHub aesarva и год (год сборки).
+// Подвал: ссылки на GitHub и почту слева, строка команды и год справа. Своих цветов и шрифтов нет.
 import type { Lang } from '../../lib/schema';
 import { ORG } from '../../lib/site';
 import { t } from '../../i18n';
@@ -13,11 +13,57 @@ const year = new Date().getUTCFullYear();
 ---
 
 <footer class="footer">
-  <span>{d.footerOrg}</span> · <a href={ORG.github}>{d.footerGithub}</a> · <span data-year>{year}</span>
+  <ul class="footer-links">
+    <li>
+      <a href={ORG.github}>
+        <svg class="footer-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.51-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+        </svg>
+        <span>{d.footerGithub}</span>
+      </a>
+    </li>
+    <li>
+      <a href={`mailto:${ORG.email}`} aria-label={`${d.emailLabel}: ${ORG.email}`}>
+        <svg class="footer-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" d="M1.5 3.5h13v9h-13zM1.5 3.5 8 9l6.5-5.5" />
+        </svg>
+        <span>{ORG.email}</span>
+      </a>
+    </li>
+  </ul>
+  <p class="footer-credit">{d.footerCredit}{'\u00a0·'} <span class="footer-year" data-year>{year}</span></p>
 </footer>
 
 <style>
   .footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     padding: 1.5rem;
+  }
+  .footer-links {
+    display: flex;
+    gap: 1.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .footer-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+  .footer-icon {
+    width: 1.25em;
+    height: 1.25em;
+    flex: none;
+  }
+  .footer-credit {
+    margin: 0;
+  }
+  .footer-year {
+    white-space: nowrap;
   }
 </style>

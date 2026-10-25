@@ -14,6 +14,9 @@ export const localizedSchema = z.object({ ru: z.string().min(1), en: z.string().
  */
 export const RESERVED_IDS = ['en', 'hub', 'fonts'] as const;
 
+/** Пиктограммы фактов, которые умеет рисовать хаб. */
+export const FACT_ICONS = ['chip', 'heat', 'gauge', 'bell', 'laptop', 'battery', 'moon', 'power', 'coins', 'calendar', 'lock', 'menubar'] as const;
+
 export const productSchema = z.object({
   /** kebab-case: идёт в URL `/<id>/` */
   id: z
@@ -37,6 +40,11 @@ export const productSchema = z.object({
   }),
   icon: z.string().min(1),
   tagline: localizedSchema,
+  /** Короткие факты из README продукта для полосы хаба, с пиктограммой из набора хаба. */
+  facts: z
+    .array(z.object({ icon: z.enum(FACT_ICONS), text: localizedSchema }))
+    .min(1)
+    .max(4),
 });
 export type Product = z.infer<typeof productSchema>;
 

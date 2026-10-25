@@ -11,3 +11,20 @@ icon: icon.png
 tagline:
   ru: Чип вашего Mac в работе — прямо в строке меню.
   en: See your Mac's chip at work, right from the menu bar.
+facts:
+  - icon: chip
+    text:
+      ru: "Каждое ядро на карте чипа"
+      en: "Every core on the die map"
+  - icon: heat
+    text:
+      ru: "Цвет — это нагрев"
+      en: "Colour means heat"
+  - icon: gauge
+    text:
+      ru: "0,5% CPU и 14 МБ в покое"
+      en: "0.5% CPU, 14 MB at rest"
+  - icon: bell
+    text:
+      ru: "Оповещения, которые ждут"
+      en: "Alerts that wait"

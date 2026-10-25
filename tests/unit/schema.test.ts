@@ -12,6 +12,7 @@ const valid = {
   requires: { macos: '26', arch: 'universal' },
   icon: 'icon.png',
   tagline: { ru: 'Текст', en: 'Text' },
+  facts: [{ icon: 'bell', text: { ru: 'Факт', en: 'Fact' } }],
 };
 
 describe('productSchema', () => {
@@ -84,5 +85,22 @@ describe('releaseSchema', () => {
   it('отвергает version: "v1.0.0"', () => {
     const r = { status: 'released', version: 'v1.0.0', url: 'https://x.test/a.dmg', size: 10, publishedAt: '2026-01-01' };
     expect(releaseSchema.safeParse(r).success).toBe(false);
+  });
+});
+
+describe('факты продукта для хаба', () => {
+  const base = readProducts(process.cwd())[0].data as Record<string, unknown>;
+  it('у каждой записи от 1 до 4 фактов с известной пиктограммой', () => {
+    for (const { data } of readProducts(process.cwd())) {
+      const p = productSchema.parse(data);
+      expect(p.facts.length).toBeGreaterThanOrEqual(1);
+      expect(p.facts.length).toBeLessThanOrEqual(4);
+    }
+  });
+  it('отвергает неизвестную пиктограмму, пять фактов и факт без en', () => {
+    const fact = { icon: 'bell', text: { ru: 'а', en: 'b' } };
+    expect(productSchema.safeParse({ ...base, facts: [{ ...fact, icon: 'rocket' }] }).success).toBe(false);
+    expect(productSchema.safeParse({ ...base, facts: [fact, fact, fact, fact, fact] }).success).toBe(false);
+    expect(productSchema.safeParse({ ...base, facts: [{ icon: 'bell', text: { ru: 'а' } }] }).success).toBe(false);
   });
 });

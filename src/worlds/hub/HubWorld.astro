@@ -1,28 +1,106 @@
 ---
-// Мир хаба: список карточек продуктов. Заголовок — h1, на 404 — h2 (там свой h1).
+// Мир хаба — каталог независимого лейбла: каждая утилита — релиз CT 01, CT 02… на сером картоне.
+// Полосы строятся из данных: новый продукт добавляет полосу. Новейший вышедший релиз — оранжевый.
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/fira-sans-extra-condensed/500.css';
+import { Image } from 'astro:assets';
 import type { Lang } from '../../lib/schema';
-import type { ProductView } from '../../lib/products';
+import { catalogNumber, formatReleaseDate, newestReleaseId, type ProductView } from '../../lib/products';
+import { embossedIcon } from './emboss';
 import { pagePath } from '../../lib/routes';
 import { t } from '../../i18n';
 
 interface Props {
   lang: Lang;
   products: ProductView[];
-  /** Уровень заголовка мира: на странице ровно один h1. */
-  heading?: 'h1' | 'h2';
 }
-const { lang, products, heading = 'h1' } = Astro.props;
-const Heading = heading;
+const { lang, products } = Astro.props;
+const d = t(lang);
+const newest = newestReleaseId(products);
+
+
+// Пиктограммы хаба (контур 16×16, одна толщина линии): факты продуктов и общие обещания.
+const ICONS: Record<string, string> = {
+  chip: 'M4 4h8v8H4zM6.5 6.5h3v3h-3zM6 1v3M10 1v3M6 12v3M10 12v3M1 6h3M1 10h3M12 6h3M12 10h3',
+  heat: 'M8 15c-3 0-5-2-5-4.8C3 7 6 6 6 2c2 1 3 3 3 4.5C10 5.5 10.5 4.5 10.5 3.5 12 5 13 7 13 10.2 13 13 11 15 8 15z',
+  gauge: 'M2.5 11.5a6 6 0 1 1 11 0M8 10l3-4M1.5 13.5h13',
+  bell: 'M4 11V7a4 4 0 0 1 8 0v4l1.5 2h-11zM6.5 15h3',
+  laptop: 'M1.5 9.5h13v2h-13zM3 9.5 4.5 5h7l1.5 4.5',
+  battery: 'M1.5 5h11v6h-11zM12.5 7h2v2h-2M3.5 7h3v2h-3',
+  moon: 'M12.5 10.5A5.5 5.5 0 0 1 6 3a5.5 5.5 0 1 0 6.5 7.5z',
+  power: 'M8 1.5v6M4.5 3.8a5.5 5.5 0 1 0 7 0',
+  coins: 'M2 5c0-1.1 2-2 4.5-2S11 3.9 11 5s-2 2-4.5 2S2 6.1 2 5zM2 5v6c0 1.1 2 2 4.5 2M11 5v2M8 10c0-1.1 1.6-2 3.5-2s3.5.9 3.5 2-1.6 2-3.5 2S8 11.1 8 10zM8 10v2.5c0 1.1 1.6 2 3.5 2s3.5-.9 3.5-2V10',
+  calendar: 'M2 3.5h12v10H2zM2 6.5h12M5 1.5v3M11 1.5v3',
+  lock: 'M4 7V5a4 4 0 0 1 8 0v2M3 7h10v8H3z',
+  menubar: 'M1 2h14v3H1zM8.5 5v9h6V5M10 8h3M10 10.5h3M2.5 3.5h2',
+  code: 'M5.5 4 1.5 8l4 4M10.5 4l4 4-4 4',
+  shield: 'M8 1 2 3.5v4C2 11 4.6 14 8 15c3.4-1 6-4 6-7.5v-4zM5.3 8l2 2 3.6-3.8',
+};
+// Общие обещания: открытый код, приватность, строка меню, подпись.
+const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
 ---
 
-<section class="world">
-  <Heading>{t(lang).hubTitle}</Heading>
-  <ul>
+<section class="catalogue" id="releases" aria-label={d.releasesLabel}>
+  <ol class="bands">
     {
-      products.map((p) => (
+      products.map((p) => {
+        const r = p.release;
+        const href = pagePath(lang, p.id);
+        return (
+          <li class:list={['band', { 'is-newest': p.id === newest, 'is-soon': r.status !== 'released' }]}>
+            <p class="band-num ink" aria-hidden="true">{catalogNumber(p.order)}</p>
+            <Image class="band-emboss" src={embossedIcon(p)} alt="" width={452} height={452} />
+            <div class="band-text">
+              <h2 class="band-name">
+                <a class="band-link ink" href={href}>
+                  <span class="visually-hidden">{catalogNumber(p.order)} </span>
+                  {p.name}
+                </a>
+                {p.id === newest && <span class="band-sticker">{d.newRelease}</span>}
+                <span class="band-arrow" aria-hidden="true" />
+              </h2>
+              <p class="band-line">{p.tagline[lang]}</p>
+              <p class="band-press" aria-label={d.pressingLabel}>
+                {r.status === 'released' ? (
+                  <>
+                    <span>v{r.version}</span>
+                    <span>{formatReleaseDate(r.publishedAt, lang)}</span>
+                  </>
+                ) : (
+                  <span>{d.comingSoon}</span>
+                )}
+                <span>macOS {p.requires.macos}+</span>
+                <span>{p.license}</span>
+              </p>
+              <ul class="band-facts">
+                {p.facts.map((f) => (
+                  <li>
+                    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                      <path d={ICONS[f.icon]} />
+                    </svg>
+                    <span>{f.text[lang]}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </li>
+        );
+      })
+    }
+  </ol>
+</section>
+
+<section class="promises" aria-labelledby="promises-title">
+  <h2 id="promises-title" class="promises-title ink">{d.promisesTitle}</h2>
+  <ul class="promises-list">
+    {
+      d.promises.map((text, i) => (
         <li>
-          <a href={pagePath(lang, p.id)}>{p.name}</a>
-          <p>{p.tagline[lang]}</p>
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d={ICONS[PROMISE_ICONS[i]]} />
+          </svg>
+          <span>{text}</span>
         </li>
       ))
     }
@@ -30,22 +108,576 @@ const Heading = heading;
 </section>
 
 <style is:global>
-  :root[data-world="hub"] {
-    --shell-ink: #1c1c1e;
-    --shell-ground: #f5f5f7;
-    --shell-accent: #0a5bd8;
-    --shell-font: system-ui, sans-serif;
+  /* Дисплейный голос: латиница — Anton, кириллица — Oswald 700 (тот же род альтернативного гротеска).
+     Одно семейство с разбивкой по unicode-range, чтобы на / заголовки не меняли голос. */
+  @font-face {
+    font-family: 'Hub Display';
+    font-weight: 400;
+    font-display: swap;
+    src: url('../../../node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215;
+  }
+  @font-face {
+    font-family: 'Hub Display';
+    font-weight: 400;
+    font-display: swap;
+    src: url('../../../node_modules/@fontsource/oswald/files/oswald-cyrillic-700-normal.woff2') format('woff2');
+    /* Прописные Oswald на 5,2% ниже, чем у Anton (замер 250 против 263 при 300px): выравниваем. */
+    size-adjust: 105.2%;
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+  }
+
+  :root[data-world='hub'] {
+    --shell-ink: #121110;
+    --shell-ground: #94928d;
+    --shell-accent: #f84c0a;
+    --shell-font: 'JetBrains Mono', ui-monospace, monospace;
+
+    /* Единица компа: 1/1536 ширины на десктопе. */
+    --u: calc(100vw / 1536);
+    --ink: #121110;
+    --ink-soft: #3b3936;
+    --board-base: #94928d;
+    --signal: #f84c0a;
+    --display: 'Hub Display', sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --grotesk: 'Fira Sans Extra Condensed', sans-serif;
+    --rule: calc(3 * var(--u));
+    --gutter: calc(34 * var(--u));
+  }
+
+  :root[data-world='hub'] body {
+    background-color: var(--board-base);
+    background-image: url('../../../assets/plates/board-texture.webp');
+    background-size: calc(1024 * var(--u)) auto;
+    font-size: calc(18 * var(--u));
+    -webkit-font-smoothing: antialiased;
+  }
+  :root[data-world='hub'] ::selection {
+    background: var(--signal);
+    color: var(--ink);
+  }
+  :root[data-world='hub'] a {
+    color: inherit;
+    text-decoration-thickness: calc(2 * var(--u));
+    text-underline-offset: 0.18em;
+  }
+  /* Фокус — цветом краски: оранжевый на картоне даёт ~1,1:1, а индикатору нужно 3:1. */
+  :root[data-world='hub'] :focus-visible {
+    outline: max(calc(3 * var(--u)), 2px) solid var(--ink);
+    outline-offset: calc(4 * var(--u));
+  }
+
+  /* Шапка: знак и имя слева, навигация справа, тяжёлая линейка под ней. */
+  :root[data-world='hub'] .topbar {
+    position: relative;
+    align-items: flex-start;
+    margin: 0 var(--gutter);
+    padding: calc(4 * var(--u)) 0 calc(21 * var(--u));
+    border-bottom: var(--rule) solid var(--ink);
+  }
+  :root[data-world='hub'] .topbar-nav {
+    margin-top: calc(80 * var(--u));
+    gap: calc(14 * var(--u));
+    font-family: var(--display);
+    font-size: max(calc(19 * var(--u)), 13px);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  :root[data-world='hub'] .topbar-nav a {
+    text-decoration: none;
+  }
+  :root[data-world='hub'] .topbar-nav a:hover {
+    text-decoration: underline;
+  }
+  :root[data-world='hub'] .lang-current {
+    text-decoration: underline;
+    text-decoration-thickness: calc(2 * var(--u));
+    text-underline-offset: 0.18em;
+  }
+
+  :root[data-world='hub'] .masthead {
+    display: flex;
+    align-items: flex-start;
+    gap: calc(26 * var(--u));
+    text-decoration: none;
+  }
+  :root[data-world='hub'] .masthead-mark {
+    width: calc(146 * var(--u));
+    height: calc(146 * var(--u));
+    margin: calc(-14 * var(--u)) 0 calc(-18 * var(--u));
+    object-fit: contain;
+  }
+  :root[data-world='hub'] .masthead-text {
+    display: flex;
+    flex-direction: column;
+    padding-top: calc(4 * var(--u));
+  }
+  :root[data-world='hub'] .masthead-title {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    margin-top: calc(10 * var(--u));
+    font-size: calc(72 * var(--u));
+    line-height: 1;
+    letter-spacing: -0.035em;
+  }
+  :root[data-world='hub'] .masthead-tagline {
+    text-wrap: balance;
+    margin-top: calc(12 * var(--u));
+    font-family: var(--mono);
+    font-size: max(calc(20 * var(--u)), 12px);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* Подвал оболочки в мире хаба. */
+  :root[data-world='hub'] .footer {
+    margin: 0 var(--gutter);
+    padding: calc(14 * var(--u)) 0 calc(20 * var(--u));
+    font-family: var(--grotesk);
+    font-size: calc(20 * var(--u));
+  }
+  :root[data-world='hub'] .footer-links {
+    gap: calc(34 * var(--u));
+  }
+  :root[data-world='hub'] .footer-links a {
+    gap: calc(14 * var(--u));
+    text-decoration: none;
+  }
+  :root[data-world='hub'] .footer-links li + li {
+    padding-left: calc(34 * var(--u));
+    border-left: calc(2 * var(--u)) solid var(--ink);
+  }
+  :root[data-world='hub'] .footer-icon {
+    width: calc(32 * var(--u));
+    height: calc(32 * var(--u));
+  }
+  :root[data-world='hub'] .footer-credit {
+    font-family: var(--mono);
+    font-size: max(calc(14 * var(--u)), 11px);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 63.99rem) {
+    :root[data-world='hub'] {
+      --u: calc(100vw / 820);
+      --gutter: 16px;
+      --rule: 3px;
+    }
+    :root[data-world='hub'] body {
+      font-size: 16px;
+    }
+    :root[data-world='hub'] .topbar {
+      flex-direction: column;
+      gap: 14px;
+      padding: 12px 0 16px;
+    }
+    :root[data-world='hub'] .topbar-nav {
+      flex-wrap: wrap;
+      margin: 0;
+      gap: 6px 18px;
+      font-size: 14px;
+    }
+    :root[data-world='hub'] .nav-dot {
+      display: none;
+    }
+    :root[data-world='hub'] .masthead {
+      gap: 12px;
+      align-items: center;
+    }
+    :root[data-world='hub'] .masthead-mark {
+      width: 72px;
+      height: 72px;
+      margin: 0;
+    }
+    :root[data-world='hub'] .masthead-title {
+      margin: 0;
+      font-size: clamp(34px, 9vw, 52px);
+    }
+    :root[data-world='hub'] .masthead-tagline {
+      margin-top: 4px;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+    :root[data-world='hub'] .footer {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 16px 0 24px;
+      font-size: 16px;
+    }
+    :root[data-world='hub'] .footer-links {
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    :root[data-world='hub'] .footer-links li + li {
+      padding-left: 16px;
+      border-left-width: 1.5px;
+    }
+    :root[data-world='hub'] .footer-icon {
+      width: 22px;
+      height: 22px;
+    }
+    :root[data-world='hub'] .footer-credit {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+    }
+  }
+
+  /* Печатная краска: светлые волокна картона проступают сквозь дисплейный текст. */
+  :root[data-world='hub'] .ink {
+    mask-image: url('../../../assets/plates/ink-mask.webp');
+    mask-size: calc(1024 * var(--u)) auto;
+    mask-mode: alpha;
+  }
+
+  :root[data-world='hub'] .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 </style>
 
 <style>
-  .world {
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
+  .catalogue {
+    margin: 0 var(--gutter);
   }
-  ul {
-    list-style: none;
+  .bands {
+    margin: 0;
     padding: 0;
+    list-style: none;
+  }
+
+  /* Полоса: гигантский номер, вытисненная иконка, текст, стрелка. Ссылка растянута на всю полосу. */
+  .band {
+    position: relative;
+    display: grid;
+    grid-template-columns: calc(434 * var(--u)) calc(226 * var(--u)) 1fr;
+    column-gap: calc(32 * var(--u));
+    align-items: start;
+    padding: calc(10 * var(--u)) 0 calc(9 * var(--u));
+    border-bottom: var(--rule) solid var(--ink);
+  }
+  .band-num {
+    margin: 0;
+    font-family: var(--display);
+    font-size: calc(254 * var(--u));
+    line-height: 0.96;
+    letter-spacing: -0.04em;
+    word-spacing: -0.08em;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  .is-newest .band-num,
+  .is-newest .band-arrow {
+    color: var(--signal);
+  }
+  .is-soon .band-num {
+    color: transparent;
+    -webkit-text-stroke: calc(3 * var(--u)) var(--ink);
+  }
+  .band-emboss {
+    width: calc(226 * var(--u));
+    height: calc(226 * var(--u));
+    margin-top: calc(4 * var(--u));
+    padding: calc(8 * var(--u));
+    box-sizing: border-box;
+    object-fit: contain;
+    /* Края плиты растворяются в картоне страницы. */
+    mask-image: linear-gradient(to right, transparent, #000 9%, #000 91%, transparent),
+      linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent);
+    mask-composite: intersect;
+  }
+  .band-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .band-name {
+    display: flex;
+    align-items: center;
+    gap: calc(18 * var(--u));
+    margin: calc(20 * var(--u)) 0 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: calc(56 * var(--u));
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .band-link {
+    text-decoration: none;
+  }
+  .band-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  /* Знаковое движение: релиз «вытягивают из ящика» — иконка приподнимается с картона, стрелка уходит вперёд. */
+  .band-emboss,
+  .band-arrow {
+    transition:
+      transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      filter 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .band:has(.band-link:hover, .band-link:focus-visible) .band-emboss {
+    transform: translateY(calc(-6 * var(--u)));
+    filter: drop-shadow(0 calc(10 * var(--u)) calc(12 * var(--u)) rgb(0 0 0 / 0.28));
+  }
+  .band:has(.band-link:hover, .band-link:focus-visible) .band-arrow {
+    transform: translateX(calc(12 * var(--u)));
+  }
+  .band-sticker {
+    padding: calc(24 * var(--u)) calc(34 * var(--u)) calc(18 * var(--u));
+    background: url('../../../assets/plates/sticker.png') center / 100% 100% no-repeat;
+    color: var(--ink);
+    font-size: calc(36 * var(--u));
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    margin: calc(-24 * var(--u)) 0 0 calc(4 * var(--u));
+    transform: rotate(-3deg);
+    filter: drop-shadow(0 calc(2 * var(--u)) calc(3 * var(--u)) rgb(0 0 0 / 0.22));
+    animation: sticker-slap 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+  }
+  /* Единственный момент при загрузке: наклейку прижимают к картону. */
+  @keyframes sticker-slap {
+    from {
+      transform: rotate(-7deg) scale(1.18);
+      filter: drop-shadow(0 calc(16 * var(--u)) calc(18 * var(--u)) rgb(0 0 0 / 0.3));
+    }
+  }
+  .band-line {
+    max-width: 30ch;
+    margin: calc(2 * var(--u)) 0 0;
+    font-family: var(--mono);
+    font-size: max(calc(21 * var(--u)), 15px);
+    line-height: 1.2;
+  }
+  .band-press {
+    display: flex;
+    gap: calc(36 * var(--u));
+    margin: calc(8 * var(--u)) 0 0;
+    padding: calc(3 * var(--u)) 0;
+    border-block: max(calc(1.5 * var(--u)), 1px) solid var(--ink-soft);
+    font-family: var(--mono);
+    font-size: max(calc(18 * var(--u)), 13px);
+    font-variant-numeric: tabular-nums;
+  }
+  .band-facts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin: calc(10 * var(--u)) 0 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--grotesk);
+    font-weight: 500;
+    font-size: max(calc(17.5 * var(--u)), 12px);
+    line-height: 1.12;
+  }
+  .band-facts li {
+    display: flex;
+    align-items: center;
+    gap: calc(12 * var(--u));
+    padding: 0 calc(12 * var(--u));
+  }
+  .band-facts li + li {
+    border-left: max(calc(1.5 * var(--u)), 1px) solid var(--ink-soft);
+  }
+  .band-facts li:first-child {
+    padding-left: 0;
+  }
+  .band-facts svg {
+    width: calc(30 * var(--u));
+    height: calc(30 * var(--u));
+  }
+  .band-arrow {
+    position: absolute;
+    top: calc(52 * var(--u));
+    right: calc(4 * var(--u));
+    width: calc(96 * var(--u));
+    height: calc(84 * var(--u));
+    color: var(--ink);
+  }
+  .band-arrow::before {
+    content: '';
+    position: absolute;
+    top: calc(50% - 3.5 * var(--u));
+    left: 0;
+    right: calc(4 * var(--u));
+    border-top: calc(7 * var(--u)) solid currentColor;
+  }
+  .band-arrow::after {
+    content: '';
+    position: absolute;
+    top: calc(50% - 29 * var(--u));
+    right: calc(6 * var(--u));
+    width: calc(54 * var(--u));
+    height: calc(54 * var(--u));
+    border-top: calc(7 * var(--u)) solid currentColor;
+    border-right: calc(7 * var(--u)) solid currentColor;
+    transform: rotate(45deg);
+  }
+
+  /* Обещания для всех релизов: одна полоса под каталогом, крупнее фактов. */
+  .promises {
+    display: grid;
+    grid-template-columns: calc(434 * var(--u)) 1fr;
+    column-gap: calc(32 * var(--u));
+    align-items: center;
+    margin: 0 var(--gutter);
+    padding: calc(40 * var(--u)) 0 calc(44 * var(--u));
+    border-bottom: var(--rule) solid var(--ink);
+  }
+  .promises-title {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: calc(56 * var(--u));
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .promises-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--grotesk);
+    font-weight: 500;
+    font-size: max(calc(22 * var(--u)), 15px);
+    line-height: 1.15;
+  }
+  .promises-list li {
+    display: flex;
+    align-items: center;
+    gap: calc(16 * var(--u));
+    padding: 0 calc(20 * var(--u));
+  }
+  .promises-list li + li {
+    border-left: max(calc(1.5 * var(--u)), 1px) solid var(--ink-soft);
+  }
+  .promises-list svg,
+  .band-facts svg {
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: square;
+  }
+  .promises-list svg {
+    width: calc(44 * var(--u));
+    height: calc(44 * var(--u));
+  }
+
+  @media (max-width: 63.99rem) {
+    .band {
+      grid-template-columns: 1fr auto;
+      grid-template-areas: 'num emboss' 'text text';
+      column-gap: 12px;
+      row-gap: 10px;
+      padding: 14px 0 18px;
+    }
+    .band-num {
+      grid-area: num;
+      align-self: center;
+      font-size: clamp(88px, 27vw, 210px);
+    }
+    .band-emboss {
+      grid-area: emboss;
+      width: clamp(96px, 26vw, 200px);
+      height: clamp(96px, 26vw, 200px);
+      margin: 0;
+      padding: 6px;
+    }
+    .band-text {
+      grid-area: text;
+    }
+    .band-name {
+      flex-wrap: wrap;
+      margin: 0;
+      font-size: clamp(34px, 10vw, 56px);
+    }
+    .band-sticker {
+      margin: 0;
+      padding: 8px 12px 6px;
+      font-size: 18px;
+    }
+    .band-line {
+      max-width: none;
+      margin-top: 6px;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+    .band-press {
+      flex-wrap: wrap;
+      gap: 4px 18px;
+      margin-top: 10px;
+      font-size: 13px;
+      border-block-width: 1px;
+    }
+    .band-facts {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px 0;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .band-facts li:nth-child(odd) {
+      padding-left: 0;
+      border-left: 0;
+    }
+    .band-facts svg {
+      width: 24px;
+      height: 24px;
+    }
+    .band-arrow {
+      position: relative;
+      top: auto;
+      right: auto;
+      flex: none;
+      width: 44px;
+      height: 36px;
+      margin-left: auto;
+    }
+    .promises {
+      grid-template-columns: 1fr;
+      row-gap: 16px;
+      padding: 24px 0 28px;
+    }
+    .promises-title {
+      font-size: clamp(32px, 9vw, 48px);
+    }
+    .promises-list {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px 0;
+      font-size: 15px;
+    }
+    .promises-list li {
+      gap: 10px;
+      padding: 0 12px;
+    }
+    .promises-list li:nth-child(odd) {
+      padding-left: 0;
+      border-left: 0;
+    }
+    .promises-list svg {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .band-emboss,
+    .band-arrow {
+      transition: none;
+    }
+    .band-sticker {
+      animation: none;
+    }
   }
 </style>

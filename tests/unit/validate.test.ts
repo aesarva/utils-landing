@@ -13,6 +13,7 @@ const product = (id: string, order: number, over: Record<string, unknown> = {}) 
     requires: { macos: '26', arch: 'universal' },
     icon: 'icon.png',
     tagline: { ru: 'Текст', en: 'Text' },
+    facts: [{ icon: 'bell', text: { ru: 'Факт', en: 'Fact' } }],
     ...over,
   },
 });
@@ -38,6 +39,8 @@ function base(): SiteInput {
     worldDirs: ['aa', 'bb'],
     worldStyles: { aa: css('aa'), bb: css('bb'), hub: css('hub') },
     assetExists: () => true,
+    embossPlateExists: () => true,
+    embossRegistry: ['aa', 'bb'],
     dicts: { ru: { a: 'x', nested: { b: 'y' } }, en: { a: 'x', nested: { b: 'y' } } },
   };
 }
@@ -133,6 +136,18 @@ describe('validateSite', () => {
     const input = base();
     input.assetExists = (id, file) => !(id === 'bb' && file === 'icon.png');
     expect(has(validateSite(input), 'src/assets/products/bb/icon.png: файл не найден')).toBe(true);
+  });
+
+  it('у продукта нет вытисненной иконки для хаба', () => {
+    const input = base();
+    input.embossPlateExists = (id) => id !== 'bb';
+    expect(has(validateSite(input), 'assets/plates/icon-bb.png: нет вытисненной иконки')).toBe(true);
+  });
+
+  it('вытисненная иконка не подключена в emboss.ts', () => {
+    const input = base();
+    input.embossRegistry = ['aa'];
+    expect(has(validateSite(input), 'src/worlds/hub/emboss.ts: нет плиты для «bb»')).toBe(true);
   });
 
   it('ключи словарей ru и en различаются', () => {

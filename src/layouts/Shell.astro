@@ -40,7 +40,10 @@ const world = productId ?? 'hub';
     <slot name="head" />
   </head>
   <body>
-    <TopBar lang={lang} productId={productId} isHub={isHub} notFound={notFound} />
+    <TopBar lang={lang} productId={productId} isHub={isHub} notFound={notFound}>
+      <slot name="masthead" slot="lead" />
+      <slot name="nav-links" slot="links" />
+    </TopBar>
     <main>
       <slot />
     </main>

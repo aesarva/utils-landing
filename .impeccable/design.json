@@ -1,0 +1,319 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T15:39:26.167889+00:00",
+  "title": "Design System: CyberTech team utilities",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Press Ink",
+        "canonical": "#121110",
+        "tonalRamp": [
+          "oklch(15% 0.003 70)",
+          "oklch(25% 0.003 70)",
+          "oklch(35% 0.003 70)",
+          "oklch(45% 0.003 70)",
+          "oklch(55% 0.003 70)",
+          "oklch(65% 0.003 70)",
+          "oklch(80% 0.003 70)",
+          "oklch(95% 0.003 70)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "#3b3936",
+        "tonalRamp": [
+          "oklch(15% 0.005 70)",
+          "oklch(25% 0.005 70)",
+          "oklch(35% 0.005 70)",
+          "oklch(45% 0.005 70)",
+          "oklch(55% 0.005 70)",
+          "oklch(65% 0.005 70)",
+          "oklch(80% 0.005 70)",
+          "oklch(95% 0.005 70)"
+        ]
+      },
+      "board-base": {
+        "role": "neutral",
+        "displayName": "Sleeve Board",
+        "canonical": "#94928d",
+        "tonalRamp": [
+          "oklch(15% 0.005 90)",
+          "oklch(25% 0.005 90)",
+          "oklch(35% 0.005 90)",
+          "oklch(45% 0.005 90)",
+          "oklch(55% 0.005 90)",
+          "oklch(65% 0.005 90)",
+          "oklch(80% 0.005 90)",
+          "oklch(95% 0.005 90)"
+        ]
+      },
+      "signal": {
+        "role": "primary",
+        "displayName": "Fluorescent Signal Orange",
+        "canonical": "#f84c0a",
+        "tonalRamp": [
+          "oklch(15% 0.2 38)",
+          "oklch(25% 0.2 38)",
+          "oklch(35% 0.2 38)",
+          "oklch(45% 0.2 38)",
+          "oklch(55% 0.2 38)",
+          "oklch(65% 0.2 38)",
+          "oklch(80% 0.2 38)",
+          "oklch(95% 0.2 38)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "catalogue-number": {
+        "displayName": "Catalogue number",
+        "purpose": "CT NN per band; ink, signal when newest, 3u outline when unreleased; 404 code."
+      },
+      "masthead": {
+        "displayName": "Masthead",
+        "purpose": "\"CyberTech team\"; h1 on hub, p on 404."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Release names, promises title, 404 titles."
+      },
+      "nav": {
+        "displayName": "Nav",
+        "purpose": "Topbar links and language switch, uppercase."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "One-line release copy, max 30ch."
+      },
+      "pressing": {
+        "displayName": "Pressing data",
+        "purpose": "Version, date, macOS, licence between hairlines."
+      },
+      "label-caps": {
+        "displayName": "Label caps",
+        "purpose": "Masthead tagline; footer credit at 14u / +0.18em."
+      },
+      "fact": {
+        "displayName": "Fact",
+        "purpose": "Per-band product facts, four columns."
+      },
+      "promise": {
+        "displayName": "Promise",
+        "purpose": "The single promises strip."
+      },
+      "hub-display-cyrillic": {
+        "displayName": "Hub Display (Cyrillic)",
+        "purpose": "Oswald 700 via unicode-range inside Hub Display, size-adjust 105.2% to match Anton cap height."
+      }
+    },
+    "shadows": [
+      {
+        "name": "lift",
+        "value": "drop-shadow(0 calc(10 * var(--u)) calc(12 * var(--u)) rgb(0 0 0 / 0.28))",
+        "purpose": "filter on the emboss plate while its band is hovered/focused."
+      },
+      {
+        "name": "sticker-rest",
+        "value": "drop-shadow(0 calc(2 * var(--u)) calc(3 * var(--u)) rgb(0 0 0 / 0.22))",
+        "purpose": "filter on the new-release sticker at rest."
+      },
+      {
+        "name": "sticker-slap-start",
+        "value": "drop-shadow(0 calc(16 * var(--u)) calc(18 * var(--u)) rgb(0 0 0 / 0.3))",
+        "purpose": "first keyframe of the load slap only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-pull",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "All hub motion."
+      },
+      {
+        "name": "emboss-lift",
+        "value": "transform translateY(calc(-6 * var(--u))) + lift shadow, 0.45s ease-pull",
+        "purpose": "Band hover/focus: plate rises from the board."
+      },
+      {
+        "name": "arrow-advance",
+        "value": "transform translateX(calc(12 * var(--u))), 0.45s ease-pull",
+        "purpose": "Band hover/focus: arrow moves forward."
+      },
+      {
+        "name": "sticker-slap",
+        "value": "0.5s ease-pull 0.3s both, from rotate(-7deg) scale(1.18) to rotate(-3deg)",
+        "purpose": "The only load animation."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce => transitions and sticker animation off",
+        "purpose": "Guard on every hub motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "desktop",
+        "value": "min-width: 64rem (--u = 100vw / 1536)"
+      },
+      {
+        "name": "mobile",
+        "value": "max-width: 63.99rem (--u = 100vw / 820, gutter 16px, rule 3px)"
+      }
+    ],
+    "shellContract": {
+      "variables": [
+        "--shell-ink",
+        "--shell-ground",
+        "--shell-accent",
+        "--shell-font"
+      ],
+      "scope": ":root[data-world=\"<id>\"] only; validator in src/lib/validate.ts",
+      "hubValues": {
+        "--shell-ink": "#121110",
+        "--shell-ground": "#94928d",
+        "--shell-accent": "#f84c0a",
+        "--shell-font": "'JetBrains Mono', ui-monospace, monospace"
+      },
+      "slots": {
+        "TopBar": [
+          "lead",
+          "links"
+        ],
+        "LangSwitch": "RU / EN, current as text with aria-current, other as link with hreflang",
+        "Footer": "GitHub + email left, credit + UTC year right"
+      },
+      "pageRules": [
+        "exactly one h1",
+        "one [data-download] with release URL and version on released product pages",
+        "no inline <script> without src (CSP script-src self)"
+      ],
+      "productWorlds": "ochre, lidless, subus: own src/worlds/<id>/DESIGN.md; hub world does not apply"
+    }
+  },
+  "components": [
+    {
+      "name": "Release Band",
+      "kind": "card",
+      "refersTo": "band",
+      "description": "Signature catalogue band: giant number, embossed plate, name, line, pressing row, arrow; whole band is the link.",
+      "html": "<a class=\"ds-band\" href=\"#\"><span class=\"ds-band-num\">CT 01</span><span class=\"ds-band-plate\"></span><span class=\"ds-band-text\"><span class=\"ds-band-name\">Ochre</span><span class=\"ds-band-line\">See your Mac's chip at work.</span><span class=\"ds-press\"><span>v1.1.4</span><span>23 Oct 2026</span><span>macOS 26+</span><span>MIT</span></span></span><span class=\"ds-arrow\"></span></a>",
+      "css": ".ds-band{display:grid;grid-template-columns:150px 80px 1fr 40px;gap:12px;align-items:start;padding:4px 0;background:#94928d;color:#121110;border-bottom:3px solid #121110;text-decoration:none;font-family:'JetBrains Mono',monospace}.ds-band-num{font-family:'Anton','Oswald',sans-serif;font-size:88px;line-height:.96;letter-spacing:-.04em;white-space:nowrap}.ds-band-plate{width:80px;height:80px;border-radius:14px;background:#94928d;box-shadow:inset 1px 1px 0 rgb(255 255 255 / .35),inset -1px -1px 0 rgb(0 0 0 / .25);transition:transform .45s cubic-bezier(.16,1,.3,1),filter .45s cubic-bezier(.16,1,.3,1)}.ds-band-text{display:flex;flex-direction:column;padding-top:8px}.ds-band-name{font-family:'Anton','Oswald',sans-serif;font-size:28px;line-height:1;letter-spacing:-.02em}.ds-band-line{font-size:13px;line-height:1.2}.ds-press{display:flex;gap:14px;margin-top:4px;padding:2px 0;border-block:1px solid #3b3936;font-size:12px;font-variant-numeric:tabular-nums}.ds-arrow{position:relative;width:36px;height:30px;margin-top:20px;transition:transform .45s cubic-bezier(.16,1,.3,1)}.ds-arrow::before{content:'';position:absolute;top:13px;left:0;right:2px;border-top:3px solid currentColor}.ds-arrow::after{content:'';position:absolute;top:5px;right:3px;width:18px;height:18px;border-top:3px solid currentColor;border-right:3px solid currentColor;transform:rotate(45deg)}.ds-band:hover .ds-band-plate,.ds-band:focus-visible .ds-band-plate{transform:translateY(-3px);filter:drop-shadow(0 5px 6px rgb(0 0 0 / .28))}.ds-band:hover .ds-arrow,.ds-band:focus-visible .ds-arrow{transform:translateX(6px)}.ds-band:focus-visible{outline:3px solid #121110;outline-offset:4px}"
+    },
+    {
+      "name": "Newest Release Band",
+      "kind": "card",
+      "refersTo": "band-newest",
+      "description": "The one band per page in signal orange: number and arrow.",
+      "html": "<div class=\"ds-newest\"><span class=\"ds-newest-num\">CT 02</span><span class=\"ds-newest-arrow\">&rarr;</span></div>",
+      "css": ".ds-newest{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:#94928d;color:#121110;border-bottom:3px solid #121110}.ds-newest-num{font-family:'Anton','Oswald',sans-serif;font-size:88px;line-height:.96;letter-spacing:-.04em;color:#f84c0a}.ds-newest-arrow{font-family:'Anton',sans-serif;font-size:48px;color:#f84c0a}"
+    },
+    {
+      "name": "New Release Sticker",
+      "kind": "chip",
+      "refersTo": "sticker",
+      "description": "Torn-paper orange sticker beside the newest name; slapped once on load.",
+      "html": "<span class=\"ds-sticker\">New release</span>",
+      "css": ".ds-sticker{display:inline-block;padding:8px 14px 6px;background:#f84c0a;color:#121110;font-family:'Anton','Oswald',sans-serif;font-size:20px;line-height:1;text-transform:uppercase;transform:rotate(-3deg);filter:drop-shadow(0 1px 2px rgb(0 0 0 / .22));animation:ds-slap .5s cubic-bezier(.16,1,.3,1) .3s both}@keyframes ds-slap{from{transform:rotate(-7deg) scale(1.18);filter:drop-shadow(0 8px 9px rgb(0 0 0 / .3))}}@media (prefers-reduced-motion:reduce){.ds-sticker{animation:none}}"
+    },
+    {
+      "name": "Pressing Row",
+      "kind": "custom",
+      "refersTo": "pressing-row",
+      "description": "Mono tabular release data between soft-ink hairlines.",
+      "html": "<p class=\"ds-pressing\"><span>v0.4.0</span><span>25 Oct 2026</span><span>macOS 14+</span><span>GPL-3.0</span></p>",
+      "css": ".ds-pressing{display:flex;gap:24px;margin:0;padding:3px 0;border-block:1.5px solid #3b3936;background:#94928d;color:#121110;font-family:'JetBrains Mono',monospace;font-size:14px;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Fact Item",
+      "kind": "custom",
+      "refersTo": "fact",
+      "description": "Single-weight 16x16 line icon plus condensed label; items divided by soft-ink rules.",
+      "html": "<ul class=\"ds-facts\"><li><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M4 11V7a4 4 0 0 1 8 0v4l1.5 2h-11zM6.5 15h3\"/></svg><span>Alerts that wait</span></li><li><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M4 7V5a4 4 0 0 1 8 0v2M3 7h10v8H3z\"/></svg><span>Local and private</span></li></ul>",
+      "css": ".ds-facts{display:grid;grid-template-columns:repeat(2,1fr);margin:0;padding:6px 0;list-style:none;background:#94928d;color:#121110;font-family:'Fira Sans Extra Condensed',sans-serif;font-weight:500;font-size:15px;line-height:1.12}.ds-facts li{display:flex;align-items:center;gap:10px;padding:0 10px}.ds-facts li+li{border-left:1.5px solid #3b3936}.ds-facts svg{flex:none;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:square}"
+    },
+    {
+      "name": "Topbar Navigation",
+      "kind": "nav",
+      "refersTo": "topbar-nav",
+      "description": "Uppercase display links with dot separators and RU / EN switch (current as text).",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\">Utilities</a><span aria-hidden=\"true\">·</span><a href=\"#\">GitHub</a><span aria-hidden=\"true\">·</span><span class=\"ds-lang\"><a href=\"#\" hreflang=\"ru\">RU</a> / <span aria-current=\"true\">EN</span></span></nav>",
+      "css": ".ds-nav{display:flex;align-items:baseline;gap:12px;padding:8px 0 12px;border-bottom:3px solid #121110;background:#94928d;color:#121110;font-family:'Anton','Oswald',sans-serif;font-size:15px;letter-spacing:.14em;text-transform:uppercase}.ds-nav a{color:inherit;text-decoration:none}.ds-nav a:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.18em}.ds-nav a:focus-visible{outline:3px solid #121110;outline-offset:4px}.ds-lang [aria-current]{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.18em}"
+    },
+    {
+      "name": "Footer",
+      "kind": "custom",
+      "refersTo": "footer",
+      "description": "Shell footer in the hub world: GitHub and email left, mono credit and year right.",
+      "html": "<footer class=\"ds-footer\"><span class=\"ds-footer-links\"><a href=\"#\">GitHub</a><a href=\"#\">team@example.com</a></span><span class=\"ds-credit\">CyberTech team · utilities for the Mac menu bar · 2026</span></footer>",
+      "css": ".ds-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 0 14px;background:#94928d;color:#121110;font-family:'Fira Sans Extra Condensed',sans-serif;font-size:16px}.ds-footer-links{display:flex;gap:16px}.ds-footer-links a{color:inherit;text-decoration:none}.ds-footer-links a+a{padding-left:16px;border-left:2px solid #121110}.ds-footer-links a:hover{text-decoration:underline}.ds-credit{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Label Catalogue",
+    "overview": "**Creative North Star: \"The Label Catalogue\"**\n\nCyberTech team is presented as a small independent record label, and the hub is its catalogue. Each utility is a numbered release (CT 01, CT 02, CT 03) printed on grey sleeve-board with visible fibre. The page is one stack of full-width bands separated by heavy black rules. A giant catalogue number fills about a third of each band, followed by the app icon blind-embossed into the board, then the release name, one line of copy, a typewriter-mono pressing row (version, date, macOS, licence), four facts, and an arrow at the far right. The whole band is the link. The design deliberately avoids the category default of a hero headline over a row of equal app cards.\n\nThe page is dense and printed. Everything is ink on board. Depth comes from raster plates (the board fibre, the embossed icons, the silver-foil mark, the sticker), never from UI chrome. Colour is almost absent: one near-black ink, one softer ink for dividers, the board, and fluorescent orange reserved for the newest release.\n\nThere are only two motions: the release lifts out of the board on hover or focus, and one sticker is slapped down on load.",
+    "keyCharacteristics": [
+      "Grey fibre sleeve-board ground (tiled raster, 1024u) and no flat panels.",
+      "Ultra-condensed black display (Anton, plus Oswald 700 for Cyrillic) for catalogue numbers, names, and the masthead.",
+      "JetBrains Mono for copy and pressing data. Fira Sans Extra Condensed 500 for facts and footer.",
+      "Ink-grain mask on display ink, so the board fibre shows through the print.",
+      "Heavy 3u black rules between bands, and 1.5u soft-ink hairlines inside them.",
+      "Fluorescent orange marks only the newest released product.",
+      "Product icons appear as embossed plates and are never shown as flat app icons.",
+      "The desktop layout scales on one unit, `--u = 100vw / 1536`. Below 64rem the layout switches to stacked mobile bands."
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Orange marks only the newest released product: its number, its arrow, and its sticker. No other element, band, or state uses it as a fill or as text.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shell Mirror Rule",
+        "body": "The hub declares `--shell-ink` as `ink`, `--shell-ground` as `board-base`, `--shell-accent` as `signal`, and `--shell-font` as JetBrains Mono. The shell reads only these four values.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Voice Per Heading Rule",
+        "body": "Display type is always Hub Display, never a system face. Russian headings must stay in the same voice, through the Oswald Cyrillic face and its size-adjust.",
+        "section": "typography"
+      },
+      {
+        "name": "The Pressing Data Rule",
+        "body": "Version, date, OS floor, and licence are set in mono with tabular numerals, between two soft-ink hairlines. They are never set in the display or facts face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Band Is The Link Rule",
+        "body": "Each release band is one link. The name's anchor stretches over the whole band (`::after`, inset 0). Hover and focus are styled on the band (`:has()`) and not on individual parts.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-Board Rule",
+        "body": "Surfaces never get boxes, cards, or box-shadows. A shadow appears only when an object physically leaves the board (a lifted plate or a sticker), and it is always soft and blurred, never a hard offset.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do size hub elements in `--u` multiples (1/1536 of the viewport on desktop, 1/820 below 64rem), with px floors on text that must stay legible.",
+      "Do give exactly one band the signal orange: the newest released product.",
+      "Do add a product to the hub with its data entry and an embossed plate `icon-<id>.png` registered in `emboss.ts`.",
+      "Do mask display ink with `ink-mask.webp` (class `ink`) so the board fibre shows through.",
+      "Do keep pressing data in mono with tabular numerals between soft-ink hairlines.",
+      "Do keep keyboard focus visible against the board at 3:1 or better. Press Ink meets this.",
+      "Do guard every hub motion with `prefers-reduced-motion: reduce` (no transitions, no sticker animation).",
+      "Do scope every world's tokens and global styles under `:root[data-world=\"<id>\"]` and declare all four `--shell-*` variables.",
+      "Do give every shipped raster its provenance (embedded, or a `.json` sidecar beside it)."
+    ],
+    "donts": [
+      "Don't apply the hub world (board, Hub Display, catalogue numbers, ink mask, signal orange) to product pages. They follow their own `src/worlds/<id>/DESIGN.md`.",
+      "Don't use signal orange for states, links, backgrounds, or decoration.",
+      "Don't put releases in cards, rounded boxes, or box-shadows. Bands are separated by rules on bare board.",
+      "Don't show product icons as flat app icons on the hub. They are embossed plates.",
+      "Don't use hard offset shadows. Only soft drop-shadows on objects that leave the board.",
+      "Don't add load animations beyond the one sticker slap.",
+      "Don't set display type in a system face, or let Cyrillic headings fall back to a different voice.",
+      "Don't repeat the promises inside each band. The per-band facts are product-specific, and the promises appear once, in their own strip."
+    ]
+  }
+}

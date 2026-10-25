@@ -1,0 +1,24 @@
+---
+// Шапка лейбла: серебряный знак, имя команды, строка. На хабе — h1, на 404 — p (там свой h1).
+import { Image } from 'astro:assets';
+import type { Lang } from '../../lib/schema';
+import { pagePath } from '../../lib/routes';
+import { t } from '../../i18n';
+import foilMark from '../../../assets/plates/foil-mark.png';
+
+interface Props {
+  lang: Lang;
+  heading?: 'h1' | 'p';
+}
+const { lang, heading = 'h1' } = Astro.props;
+const d = t(lang);
+const Title = heading;
+---
+
+<a class="masthead" href={pagePath(lang)}>
+  <Image class="masthead-mark" src={foilMark} alt="" width={240} height={240} loading="eager" />
+  <span class="masthead-text">
+    <Title class="masthead-title">CyberTech team</Title>
+    <span class="masthead-tagline">{d.hubTagline}</span>
+  </span>
+</a>

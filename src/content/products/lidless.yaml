@@ -9,5 +9,22 @@ requires:
   arch: universal
 icon: icon.png
 tagline:
-  ru: Mac не засыпает, даже с закрытой крышкой, и никогда не остаётся без сна.
-  en: Keep your Mac awake, even with the lid closed, and never leave it unable to sleep.
+  ru: Mac не засыпает, даже с закрытой крышкой.
+  en: Keep your Mac awake, even with the lid closed.
+facts:
+  - icon: laptop
+    text:
+      ru: "С закрытой крышкой"
+      en: "Works with the lid closed"
+  - icon: battery
+    text:
+      ru: "Стоп при разряде и жаре"
+      en: "Stops on low battery, heat"
+  - icon: moon
+    text:
+      ru: "Сон всегда возвращается"
+      en: "Sleep always comes back"
+  - icon: power
+    text:
+      ru: "Одно нажатие — «В эфире»"
+      en: "One press: ON AIR"

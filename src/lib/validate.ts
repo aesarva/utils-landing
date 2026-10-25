@@ -12,6 +12,10 @@ export interface SiteInput {
   /** Склеенный текст `.astro` и `.css` мира; ключ `hub` для хаба */
   worldStyles: Record<string, string>;
   assetExists(id: string, file: string): boolean;
+  /** Есть ли вытисненная иконка хаба assets/plates/icon-<id>.png */
+  embossPlateExists(id: string): boolean;
+  /** id, для которых src/worlds/hub/emboss.ts импортирует плиту */
+  embossRegistry: string[];
   dicts: Record<Lang, object>;
 }
 
@@ -127,6 +131,12 @@ export function validateSite(input: SiteInput): string[] {
 
     if (!input.assetExists(product.id, product.icon)) {
       errors.push(`src/assets/products/${product.id}/${product.icon}: файл не найден (icon из ${path})`);
+    }
+    // Полоса хаба печатает иконку тиснением: плита обязательна для каждого продукта.
+    if (!input.embossPlateExists(product.id)) {
+      errors.push(`assets/plates/icon-${product.id}.png: нет вытисненной иконки для хаба (${path})`);
+    } else if (!input.embossRegistry.includes(product.id)) {
+      errors.push(`src/worlds/hub/emboss.ts: нет плиты для «${product.id}» — добавьте импорт assets/plates/icon-${product.id}.png`);
     }
   }
 

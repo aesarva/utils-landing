@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatSize, withReleases } from '../../src/lib/products';
-import type { Product, Releases } from '../../src/lib/schema';
+import { catalogNumber, formatReleaseDate, formatSize, newestReleaseId, withReleases, type ProductView } from '../../src/lib/products';
+import type { Product, Release, Releases } from '../../src/lib/schema';
 
 const mk = (id: string, order: number): Product => ({
   id,
@@ -12,6 +12,7 @@ const mk = (id: string, order: number): Product => ({
   requires: { macos: '14', arch: 'universal' },
   icon: `${id}.png`,
   tagline: { ru: 'р', en: 'e' },
+  facts: [],
 }) as Product;
 
 describe('withReleases', () => {
@@ -49,5 +50,27 @@ describe('formatSize', () => {
   });
   it('undefined → пустая строка', () => {
     expect(formatSize(undefined, 'en')).toBe('');
+  });
+});
+
+describe('каталог хаба', () => {
+  it('catalogNumber даёт CT и две цифры', () => {
+    expect(catalogNumber(1)).toBe('CT 01');
+    expect(catalogNumber(12)).toBe('CT 12');
+  });
+
+  it('formatReleaseDate пишет день, короткий месяц и год в UTC', () => {
+    expect(formatReleaseDate('2026-10-25T11:59:43Z', 'en')).toBe('25 Oct 2026');
+    expect(formatReleaseDate('2026-10-25T11:59:43Z', 'ru')).toBe('25 окт 2026');
+    expect(formatReleaseDate('2026-03-01T00:30:00Z', 'ru')).toBe('1 мар 2026');
+  });
+
+  it('newestReleaseId выбирает самый поздний вышедший релиз и игнорирует soon', () => {
+    const view = (id: string, release: Release) => ({ id, release }) as ProductView;
+    const rel = (publishedAt: string): Release => ({ status: 'released', version: '1.0.0', url: 'https://x', size: 1, publishedAt });
+    expect(
+      newestReleaseId([view('a', rel('2026-10-23T10:00:00Z')), view('b', rel('2026-10-25T10:00:00Z')), view('c', { status: 'soon' })]),
+    ).toBe('b');
+    expect(newestReleaseId([view('c', { status: 'soon' })])).toBeUndefined();
   });
 });

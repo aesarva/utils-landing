@@ -1,8 +1,7 @@
 ---
-// Переключатель языка: обычная ссылка на ту же страницу в другом языке, без JS.
+// Переключатель языка «RU / EN»: текущий язык — текст, другой — ссылка на ту же страницу, без JS.
 import type { Lang } from '../../lib/schema';
 import { otherLang, pagePath } from '../../lib/routes';
-import { t } from '../../i18n';
 
 interface Props {
   lang: Lang;
@@ -10,8 +9,21 @@ interface Props {
 }
 const { lang, productId } = Astro.props;
 const other = otherLang(lang);
+const code = (l: Lang) => l.toUpperCase();
+const items = (['ru', 'en'] as const).map((l) => ({ l, current: l === lang }));
 ---
 
-<a class="lang-switch" href={pagePath(other, productId)} hreflang={other} lang={other}>
-  {t(lang).langLabel}
-</a>
+<span class="lang-switch">
+  {
+    items.map(({ l, current }, i) => (
+      <>
+        {i > 0 && <span class="lang-sep" aria-hidden="true"> / </span>}
+        {current ? (
+          <span class="lang-current" aria-current="true">{code(l)}</span>
+        ) : (
+          <a href={pagePath(other, productId)} hreflang={other} lang={other}>{code(other)}</a>
+        )}
+      </>
+    ))
+  }
+</span>
