@@ -89,7 +89,7 @@ components:
 
 # Design System: CyberTech team utilities
 
-> **Scope.** This site has one **shared shell contract** and a **separate visual world per page**. This file records the shell contract (it binds every page) and the **hub world** (`/`, `/en/`, and the 404 page). The product worlds (Ochre, Lidless, Subus) each get their own `src/worlds/<id>/DESIGN.md`: Ochre is recorded in [`src/worlds/ochre/DESIGN.md`](src/worlds/ochre/DESIGN.md) (sidecar `src/worlds/ochre/design.json`); Lidless and Subus follow later. **Never apply the hub world's ground, faces, catalogue numbers, ink grain, or signal orange to a product page.** Hub tokens are declared only under `:root[data-world='hub']`.
+> **Scope.** This site has one **shared shell contract** and a **separate visual world per page**. This file records the shell contract (it binds every page) and the **hub world** (`/`, `/en/`, and the 404 page). The product worlds (Ochre, Lidless, Subus) each get their own `src/worlds/<id>/DESIGN.md`: Ochre is recorded in [`src/worlds/ochre/DESIGN.md`](src/worlds/ochre/DESIGN.md) (sidecar `src/worlds/ochre/design.json`). Lidless is recorded in [`src/worlds/lidless/DESIGN.md`](src/worlds/lidless/DESIGN.md) (sidecar `src/worlds/lidless/design.json`); Subus follows later. **Never apply the hub world's ground, faces, catalogue numbers, ink grain, or signal orange to a product page.** Hub tokens are declared only under `:root[data-world='hub']`.
 
 ## Overview
 

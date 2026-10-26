@@ -1,0 +1,15 @@
+{
+  "repo": "lidless",
+  "ref": "develop",
+  "commit": "13b439d16e9883e42f5051345be8d4b7f2842dd7",
+  "files": {
+    "icon.png": "docs/images/icon.png",
+    "menubar-dark.png": "docs/images/menubar-dark.png",
+    "menubar-light.png": "docs/images/menubar-light.png",
+    "panel-indefinite.png": "docs/images/panel-indefinite.png",
+    "panel-off.png": "docs/images/panel-off.png",
+    "panel-safety.png": "docs/images/panel-safety.png",
+    "panel-timer-ru.png": "docs/images/panel-timer-ru.png",
+    "panel-timer.png": "docs/images/panel-timer.png"
+  }
+}

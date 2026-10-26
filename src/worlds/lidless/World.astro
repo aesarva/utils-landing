@@ -1,12 +1,28 @@
 ---
-// Мир-заглушка продукта: значения оболочки под data-world, название, слоган, скачивание, лицензия.
-// Акцент у каждой заглушки свой: e2e проверяет, что стили миров не протекают на чужие страницы.
+// Мир Lidless: стена эфирной студии ночью. Табличка ON AIR — кнопка (демо панели приложения),
+// под ней клавиши сессий и режим крышки; слева имя, строка и студийные индикаторы батареи и нагрева;
+// на столе закрытый ноутбук — «крышка закрыта, всё ещё в эфире». Красный — только эфир и кнопка.
+import '@fontsource-variable/roboto-flex/standard.css';
+import '@fontsource/sofia-sans-extra-condensed/700.css';
+import '@fontsource/neucha/400.css';
+import { Image } from 'astro:assets';
 import type { Lang } from '../../lib/schema';
 import type { ProductView } from '../../lib/products';
 import { formatSize } from '../../lib/products';
-import { Image } from 'astro:assets';
-import { productIcon } from '../../lib/icons';
 import { t } from '../../i18n';
+import studio from '../../../assets/plates/lidless-studio.png';
+import icon from '../../../assets/plates/lidless-icon.png';
+import safePhoto from '../../../assets/plates/lidless-safe-photo.png';
+import shotTimer from '../../assets/products/lidless/panel-timer.png';
+import shotTimerRu from '../../assets/products/lidless/panel-timer-ru.png';
+import shotIndefinite from '../../assets/products/lidless/panel-indefinite.png';
+import shotSafety from '../../../assets/plates/lidless-panel-safety.png';
+import signPlate from '../../../assets/plates/lidless-sign.png';
+import meterBattery from '../../../assets/plates/lidless-meter-battery.png';
+import meterHeat from '../../../assets/plates/lidless-meter-heat.png';
+import tape from '../../../assets/plates/lidless-tape.png';
+import menubar from '../../assets/products/lidless/menubar-dark.png';
+import { LIDLESS_COPY } from './copy';
 
 interface Props {
   lang: Lang;
@@ -14,49 +30,1377 @@ interface Props {
 }
 const { lang, product } = Astro.props;
 const d = t(lang);
+const c = LIDLESS_COPY[lang];
 const r = product.release;
-const icon = productIcon(product);
+
+/** Демо-сессия: выбрана 1 ч, на табличке 59:58. */
+const ACTIVE_SESSION = 1;
+const lines = (s: string) => s.split('\n');
+const SHOTS = [
+  { key: 'timer', src: lang === 'ru' ? shotTimerRu : shotTimer },
+  { key: 'indefinite', src: shotIndefinite },
+  { key: 'safety', src: shotSafety },
+] as const;
 ---
 
-<section class="world">
-  <Image src={icon} alt="" width={128} height={128} />
-  <h1>{product.name}</h1>
-  <p>{product.tagline[lang]}</p>
-  {
-    r.status === 'released' ? (
-      <p class="dl" data-download>
-        <a class="download" href={r.url}>{d.download}</a>
-        <span>
-          {r.version} · {formatSize(r.size, lang)} · {d.requires(product.requires.macos)}
-        </span>
-      </p>
-    ) : (
-      <p class="soon">{d.comingSoon}</p>
-    )
-  }
-  <p>{d.license}: {product.license}</p>
-  <p><a href={`https://github.com/${product.repo}`}>{d.source}</a></p>
-</section>
+<div class="ld">
+  <section class="ld-hero" aria-labelledby="ld-title">
+    <Image class="ld-studio" src={studio} alt="" widths={[1152, 1536, 2304]} sizes="100vw" loading="eager" fetchpriority="high" />
+
+    <div class="ld-name">
+      <Image class="ld-icon" src={icon} alt="" width={140} height={140} densities={[1, 2]} loading="eager" />
+      <div>
+        <h1 id="ld-title" class="ld-title">{product.name}</h1>
+        <p class="ld-byline">{c.byline}</p>
+      </div>
+    </div>
+    <p class="ld-headline">{product.tagline[lang]}</p>
+    <p class="ld-lede">{c.lede}</p>
+
+    <div class="ld-meters" aria-hidden="true">
+      <div class="ld-meter ld-meter-battery">
+        <Image src={meterBattery} alt="" width={262} densities={[1, 2]} loading="eager" />
+        <span class="ld-meter-stop">20%</span>
+        <span class="ld-meter-label">{c.battery}</span>
+      </div>
+      <div class="ld-meter ld-meter-heat">
+        <Image src={meterHeat} alt="" width={282} densities={[1, 2]} loading="eager" />
+        <span class="ld-meter-label">{c.heat}</span>
+      </div>
+    </div>
+
+    <div class="ld-console">
+      <button class="ld-sign" type="button" aria-pressed="true" aria-describedby="ld-sign-hint" data-sign>
+        <Image class="ld-sign-plate" src={signPlate} alt="" widths={[690, 1380]} sizes="(min-width: 64rem) 45vw, 100vw" loading="eager" />
+        <span class="ld-sign-word">{c.sign}</span>
+        <span class="ld-sign-time" data-time>59:58</span>
+      </button>
+      <p id="ld-sign-hint" class="ld-hidden">{c.signHint}</p>
+
+      <div class="ld-sessions" role="group" aria-label={c.sessionsLabel}>
+        {
+          c.sessions.map((s, i) => (
+            <button type="button" aria-pressed={i === ACTIVE_SESSION ? 'true' : 'false'} data-session={i}>
+              {s}
+            </button>
+          ))
+        }
+      </div>
+      <button class="ld-closed-lid" type="button" aria-pressed="true" data-closed-lid>
+        <svg viewBox="0 0 30 20" aria-hidden="true"><path d="M5 2.5h20v13H5zM1.5 17.5h27" /></svg>
+        <span>{c.closedLid}</span>
+      </button>
+
+      <p class="ld-safety">{c.safety}</p>
+
+      {
+        r.status === 'released' ? (
+          <div class="ld-dl" data-download>
+            <a class="ld-download" href={r.url}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3.5v12M6.5 10l5.5 5.5 5.5-5.5M4.5 20h15" />
+              </svg>
+              <span>{c.download}</span>
+            </a>
+            <p class="ld-meta">
+              v{r.version} · {formatSize(r.size, lang)} · {d.requires(product.requires.macos)} · {product.license}
+            </p>
+          </div>
+        ) : (
+          <div class="ld-dl">
+            <p class="ld-soon">{d.comingSoon}</p>
+            <p class="ld-meta">
+              {d.requires(product.requires.macos)} · {product.license}
+            </p>
+          </div>
+        )
+      }
+    </div>
+
+    <p class="ld-caption">
+      <Image class="ld-tape" src={tape} alt="" width={324} densities={[1, 2]} />
+      <span>{c.caption}</span>
+    </p>
+  </section>
+
+  <section class="ld-safe" aria-labelledby="ld-safe-title">
+    <div class="ld-safe-text">
+      <h2 id="ld-safe-title" class="ld-safe-title">{c.safeTitle}</h2>
+      <p class="ld-safe-line">{c.safeLine}</p>
+      <p class="ld-safe-body">{c.safeBody}</p>
+    </div>
+    <div class="ld-safe-card">
+      <ul class="ld-safe-items">
+        <li>
+          <svg viewBox="0 0 30 20" aria-hidden="true"><path d="M2 3h23v14H2zM25 8h3v4h-3zM5 6h5v8H5z" /></svg>
+          <span>{lines(c.safeItems.battery).map((l) => <span>{l}</span>)}</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 16 30" aria-hidden="true"><path d="M5.5 3a2.5 2.5 0 0 1 5 0v15.5a5 5 0 1 1-5 0zM8 11v12" /></svg>
+          <span>{lines(c.safeItems.heat).map((l) => <span>{l}</span>)}</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="12.5" /><path d="M15 7.5V15l5 4" /></svg>
+          <span>{lines(c.safeItems.time).map((l) => <span>{l}</span>)}</span>
+        </li>
+      </ul>
+      <Image class="ld-safe-photo" src={safePhoto} alt="" widths={[606, 1212]} sizes="(min-width: 64rem) 40vw, 100vw" />
+    </div>
+  </section>
+
+  <section class="ld-recover" aria-labelledby="ld-recover-title">
+    <div class="ld-recover-main">
+      <h2 id="ld-recover-title" class="ld-h2">{c.recoverTitle}</h2>
+      <p class="ld-recover-lead">{c.recoverLead}</p>
+      <table class="ld-recover-table">
+        <thead>
+          <tr><th scope="col">{c.recoverIf}</th><th scope="col">{c.recoverThen}</th></tr>
+        </thead>
+        <tbody>
+          {c.recover.map(([when, then]) => <tr><td>{when}</td><td>{then}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+    <aside class="ld-security" aria-labelledby="ld-security-title">
+      <h3 id="ld-security-title" class="ld-h3">{c.securityTitle}</h3>
+      {
+        c.security.map((x) => (
+          <p>
+            <strong>{x.title}</strong>
+            <span>{x.text}</span>
+          </p>
+        ))
+      }
+    </aside>
+  </section>
+
+  <section class="ld-app" aria-labelledby="ld-app-title">
+    <Image class="ld-app-wall" src={studio} alt="" widths={[1152, 2304]} sizes="100vw" />
+    <h2 id="ld-app-title" class="ld-h2">{c.appTitle}</h2>
+    <p class="ld-app-lead">{c.appLead}</p>
+    <div class="ld-shots">
+      {
+        SHOTS.map((shot) => (
+          <figure>
+            <Image src={shot.src} alt={c.shots[shot.key]} widths={[320, 640]} sizes="(min-width: 64rem) 25vw, 80vw" />
+            <figcaption>{c.shots[shot.key]}</figcaption>
+          </figure>
+        ))
+      }
+    </div>
+    <figure class="ld-menubar">
+      <Image src={menubar} alt={c.menubarAlt} width={536} densities={[1, 2]} />
+      <figcaption>{c.menubarCaption}</figcaption>
+    </figure>
+  </section>
+
+  <section class="ld-install" aria-labelledby="ld-install-title">
+    <h2 id="ld-install-title" class="ld-h2">{c.installTitle}</h2>
+    <div class="ld-install-body">
+      <ol class="ld-steps">
+        {
+          c.steps.map((step, i) => (
+            <li>
+              <span class="ld-step-key" aria-hidden="true">{i + 1}</span>
+              <span>{step}</span>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="ld-install-side">
+        {
+          r.status === 'released' ? (
+            <a class="ld-download" href={r.url}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3.5v12M6.5 10l5.5 5.5 5.5-5.5M4.5 20h15" />
+              </svg>
+              <span>{c.download}</span>
+            </a>
+          ) : (
+            <p class="ld-soon">{d.comingSoon}</p>
+          )
+        }
+        <p class="ld-small">{d.requires(product.requires.macos)} · {c.signed}</p>
+        <p class="ld-small">
+          <a class="ld-source" href={`https://github.com/${product.repo}`}>{c.source}</a> · {d.license}: {product.license}
+        </p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  import { startSign } from './motion';
+  const console_ = document.querySelector<HTMLElement>('.ld-console');
+  if (console_) startSign(console_);
+</script>
 
 <style is:global>
-  :root[data-world="lidless"] {
-    --shell-ink: #1c1c1e;
-    --shell-ground: #f5f5f7;
-    --shell-accent: #b3261e;
-    --shell-font: system-ui, sans-serif;
+  :root[data-world='lidless'] {
+    --shell-ink: #f4eee6;
+    --shell-ground: #140c0a;
+    --shell-accent: #e8302b;
+    --shell-font: 'Roboto Flex Variable', system-ui, sans-serif;
+
+    /* Единица компа: 1/1536 ширины на десктопе. */
+    --u: calc(100vw / 1536);
+    --night: #140c0a;
+    --ink: #f4eee6;
+    --ink-dim: #b9b0a8;
+    --ink-faint: #8a8079;
+    --on-air: #e8302b;
+    --paper: #f9f6ef;
+    --paper-ink: #151414;
+    --paper-dim: #6d6a66;
+    --text: 'Roboto Flex Variable', system-ui, sans-serif;
+    --sign: 'Sofia Sans Extra Condensed', 'Roboto Flex Variable', sans-serif;
+    --hand: 'Neucha', cursive;
+  }
+
+  :root[data-world='lidless'] body {
+    background: var(--night);
+    color: var(--ink);
+    font-family: var(--text);
+    font-size: calc(18 * var(--u));
+    -webkit-font-smoothing: antialiased;
+  }
+  :root[data-world='lidless'] ::selection {
+    background: var(--on-air);
+    color: #fff;
+  }
+  :where(:root[data-world='lidless']) a {
+    color: inherit;
+  }
+  :root[data-world='lidless'] :focus-visible {
+    outline: max(calc(2 * var(--u)), 2px) solid var(--ink);
+    outline-offset: calc(4 * var(--u));
+  }
+  :root[data-world='lidless'] .ld-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Верхняя строка лежит поверх фото студии. */
+  :root[data-world='lidless'] .topbar {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 2;
+    align-items: center;
+    height: calc(55 * var(--u));
+    padding: 0 calc(96 * var(--u)) 0 calc(100 * var(--u));
+    box-sizing: border-box;
+  }
+  /* Линия под левой половиной строки. */
+  :root[data-world='lidless'] .topbar::after {
+    content: '';
+    position: absolute;
+    left: calc(95 * var(--u));
+    width: calc(655 * var(--u));
+    bottom: calc(5 * var(--u));
+    height: 1px;
+    background: rgb(244 238 230 / 0.16);
+  }
+  :root[data-world='lidless'] .hub-link {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(11 * var(--u));
+    color: var(--ink);
+    font-weight: 500;
+    font-size: calc(17.5 * var(--u));
+    text-decoration: none;
+  }
+  :root[data-world='lidless'] .hub-link::before {
+    content: '';
+    width: calc(16 * var(--u));
+    height: calc(11 * var(--u));
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 11'%3E%3Cpath d='M15 5.5H1.5M6 1 1.5 5.5 6 10' fill='none' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+  :root[data-world='lidless'] .lang-switch {
+    font-size: calc(16 * var(--u));
+    font-stretch: 80%;
+    color: var(--ink);
+  }
+  :root[data-world='lidless'] .lang-switch a {
+    color: inherit;
+    text-decoration: none;
+  }
+  :root[data-world='lidless'] .lang-switch a:hover {
+    color: var(--ink);
+  }
+  :root[data-world='lidless'] .lang-sep {
+    margin: 0 0.18em;
+  }
+  :root[data-world='lidless'] .lang-current {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  :root[data-world='lidless'] main {
+    position: relative;
+  }
+
+  :root[data-world='lidless'] .footer {
+    margin: 0;
+    padding: calc(26 * var(--u)) calc(130 * var(--u)) calc(32 * var(--u));
+    background: var(--night);
+    color: var(--ink-faint);
+    border-top: 1px solid rgb(244 238 230 / 0.1);
+    font-size: calc(15 * var(--u));
+  }
+  :root[data-world='lidless'] .footer a {
+    color: inherit;
+    text-decoration: none;
+  }
+  :root[data-world='lidless'] .footer a:hover {
+    color: var(--ink);
+  }
+  /* Телефон и узкий планшет: один поток, своя единица. */
+  @media (max-width: 63.99rem) {
+    :root[data-world='lidless'] {
+      --u: calc(100vw / 620);
+    }
+    :root[data-world='lidless'] body {
+      font-size: 16px;
+    }
+    :root[data-world='lidless'] .topbar {
+      height: 52px;
+      padding: 0 16px;
+    }
+    :root[data-world='lidless'] .topbar::after {
+      left: 16px;
+      right: 16px;
+      width: auto;
+      bottom: 0;
+    }
+    :root[data-world='lidless'] .hub-link,
+    :root[data-world='lidless'] .lang-switch {
+      font-size: 15px;
+    }
+    :root[data-world='lidless'] .footer {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 22px 16px 28px;
+      font-size: 14px;
+    }
   }
 </style>
 
 <style>
-  .dl {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.5rem 1rem;
+  .ld-hero {
+    position: relative;
+    height: calc(795 * var(--u));
+    overflow: hidden;
   }
-  .world {
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
+  .ld-studio {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .ld-hero > :not(.ld-studio) {
+    position: absolute;
+  }
+
+  /* Имя: иконка, Lidless, подпись команды. */
+  .ld-name {
+    left: calc(133 * var(--u));
+    top: calc(83 * var(--u));
+    display: flex;
+    gap: calc(33 * var(--u));
+  }
+  .ld-icon {
+    width: calc(136 * var(--u));
+    height: calc(136 * var(--u));
+    margin: calc(2 * var(--u));
+  }
+  .ld-title {
+    margin: calc(26 * var(--u)) 0 0;
+    font-weight: 760;
+    font-size: calc(100 * var(--u));
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    text-box: trim-both cap alphabetic;
+  }
+  .ld-byline {
+    margin: calc(14 * var(--u)) 0 0;
+    font-weight: 500;
+    font-size: calc(21 * var(--u));
+    color: #929291;
+    text-box: trim-both cap alphabetic;
+  }
+  .ld-headline {
+    left: calc(137 * var(--u));
+    top: calc(247 * var(--u));
+    width: calc(600 * var(--u));
+    margin: 0;
+    font-weight: 700;
+    font-size: calc(56 * var(--u));
+    line-height: calc(57 * var(--u));
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    text-wrap: balance;
+    text-box: trim-both cap alphabetic;
+  }
+  .ld-lede {
+    left: calc(138 * var(--u));
+    top: calc(368 * var(--u));
+    width: calc(612 * var(--u));
+    margin: 0;
+    font-size: calc(22 * var(--u));
+    font-stretch: 78%;
+    line-height: calc(29 * var(--u));
+    color: var(--ink);
+    text-box: trim-both cap alphabetic;
+  }
+
+  /* Студийные индикаторы: плиты с клёпаной рамой и сегментами, подписи — текстом. */
+  .ld-meters {
+    left: calc(190 * var(--u));
+    top: calc(437 * var(--u));
+    display: flex;
+    gap: calc(20 * var(--u));
+  }
+  .ld-meter {
+    position: relative;
+  }
+  .ld-meter img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .ld-meter-battery {
+    width: calc(262 * var(--u));
+  }
+  .ld-meter-heat {
+    width: calc(282 * var(--u));
+  }
+  /* «20%» над оранжевой стоп-линией плиты (36,8% ширины). */
+  .ld-meter-stop {
+    position: absolute;
+    left: 36.8%;
+    top: 36.5%;
+    translate: -50% -110%;
+    font: 600 calc(13 * var(--u)) / 1 var(--text);
+    color: #f0a066;
+  }
+  .ld-meter-label {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 11%;
+    font-size: calc(18.5 * var(--u));
+    text-align: center;
+    color: var(--ink);
+  }
+  /* Подпись нагрева в макете сдвинута вправо, к шкале. */
+  .ld-meter-heat .ld-meter-label {
+    left: calc(22 * var(--u));
+  }
+
+  /* Пульт справа: табличка, сессии, режим крышки, правила, скачивание. */
+  .ld-console {
+    left: calc(762 * var(--u));
+    top: calc(72 * var(--u));
+    width: calc(690 * var(--u));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .ld-sign {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(30 * var(--u));
+    
+    width: 100%;
+    height: calc(236 * var(--u));
+    padding: 0 0 0 calc(14 * var(--u));
+    border: 0;
+    border-radius: calc(14 * var(--u));
+    cursor: pointer;
+    font: inherit;
+    color: #fff1d6;
+    background: none;
+    position: relative;
+  }
+  /* Корпус и стекло — плита; свечение уходит на стену вокруг. */
+  .ld-sign-plate {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter:
+      drop-shadow(0 0 calc(36 * var(--u)) rgb(232 48 43 / 0.45))
+      drop-shadow(0 calc(30 * var(--u)) calc(50 * var(--u)) rgb(232 48 43 / 0.25));
+  }
+  /* Вне эфира стекло гаснет: дымчатый слой поверх стекла той же плиты. */
+  .ld-sign::before {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    inset: 9% 4.2% 11% 4.2%;
+    border-radius: 2.5% / 8%;
+    background: radial-gradient(ellipse at 50% 45%, #2a0907, #120403);
+    opacity: 0;
+  }
+  .ld-sign-word,
+  .ld-sign-time {
+    z-index: 2;
+  }
+  /* Слово и отсчёт стоят по координатам таблички (линии прописных — по макету). */
+  .ld-sign > * {
+    position: absolute;
+  }
+  .ld-sign-word {
+    left: calc(84 * var(--u));
+    top: calc(75 * var(--u));
+  }
+  .ld-sign-time {
+    left: calc(454 * var(--u));
+    top: calc(87 * var(--u));
+  }
+  /* «В ЭФИРЕ» длиннее «ON AIR»: на русской табличке слово мельче, разделитель и отсчёт правее. */
+  .ld-sign:lang(ru) .ld-sign-word {
+    left: calc(54 * var(--u));
+    top: calc(82 * var(--u));
+    font-size: calc(124 * var(--u));
+    letter-spacing: 0.01em;
+  }
+  .ld-sign:lang(ru) .ld-sign-time {
+    left: calc(482 * var(--u));
+    top: calc(92 * var(--u));
+    font-size: calc(96 * var(--u));
+  }
+  .ld-sign:lang(ru)::after {
+    left: calc(457 * var(--u));
+  }
+  .ld-safety:lang(ru),
+  .ld-safe-line:lang(ru) {
+    white-space: normal;
+  }
+  /* Разделитель между словом и отсчётом. */
+  .ld-sign::after {
+    content: '';
+    position: absolute;
+    left: calc(421 * var(--u));
+    top: calc(66 * var(--u));
+    width: calc(2 * var(--u));
+    height: calc(110 * var(--u));
+    z-index: 2;
+    background: rgb(255 220 200 / 0.5);
+  }
+  .ld-sign[aria-pressed='false']::after {
+    background: rgb(120 50 40 / 0.4);
+  }
+  .ld-sign-word,
+  .ld-sign-time {
+    font-family: var(--sign);
+    font-weight: 700;
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
+    text-shadow:
+      0 0 calc(12 * var(--u)) rgb(255 210 170 / 0.5),
+      0 0 calc(2 * var(--u)) rgb(255 240 220 / 0.7);
+  }
+  .ld-sign-word {
+    font-size: calc(142 * var(--u));
+    letter-spacing: 0.035em;
+  }
+  .ld-sign-time {
+    font-size: calc(104 * var(--u));
+    letter-spacing: -0.02em;
+  }
+  /* Стекло загорается и гаснет за 180 мс, как лампа. */
+  .ld-sign::before,
+  .ld-sign-word,
+  .ld-sign-time {
+    transition:
+      opacity 180ms ease-out,
+      color 180ms ease-out,
+      text-shadow 180ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ld-sign::before,
+    .ld-sign-word,
+    .ld-sign-time {
+      transition: none;
+    }
+  }
+  /* Вне эфира табличка гаснет: тёмное стекло, как в приложении. */
+  .ld-sign[aria-pressed='false']::before {
+    opacity: 0.94;
+  }
+  .ld-sign[aria-pressed='false'] .ld-sign-plate {
+    filter: none;
+  }
+  .ld-sign[aria-pressed='false'] {
+    color: #5a2a24;
+  }
+  .ld-sign[aria-pressed='false'] .ld-sign-word,
+  .ld-sign[aria-pressed='false'] .ld-sign-time {
+    text-shadow: none;
+  }
+
+  /* Клавиши и кнопка стоят по оси x = 1099 макета, на 8 px левее центра таблички. */
+  .ld-sessions,
+  .ld-closed-lid,
+  .ld-safety,
+  .ld-dl {
+    position: relative;
+    left: calc(-8 * var(--u));
+  }
+  .ld-sessions {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr 0.9fr 1.1fr 1.05fr;
+    width: calc(486 * var(--u));
+    height: calc(50 * var(--u));
+    margin-top: calc(17 * var(--u));
+    border-radius: calc(12 * var(--u));
+    background: rgb(20 16 15 / 0.96);
+    box-shadow: inset 0 0 0 1px rgb(244 238 230 / 0.28);
+    overflow: hidden;
+  }
+  .ld-sessions button,
+  .ld-closed-lid {
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .ld-sessions button {
+    font-size: calc(17 * var(--u));
+  }
+  .ld-sessions button + button {
+    box-shadow: inset 1px 0 0 rgb(244 238 230 / 0.22);
+  }
+  .ld-sessions button[aria-pressed='true'] {
+    font-weight: 650;
+  }
+  .ld-sessions button:last-child {
+    font-size: calc(24 * var(--u));
+  }
+  .ld-closed-lid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(22 * var(--u));
+    width: calc(332 * var(--u));
+    height: calc(50 * var(--u));
+    margin-top: calc(17 * var(--u));
+    border-radius: calc(10 * var(--u));
+    background: rgb(30 23 21 / 0.96);
+    box-shadow: inset 0 0 0 1px rgb(244 238 230 / 0.28);
+    font-size: calc(19 * var(--u));
+  }
+  .ld-closed-lid svg {
+    width: calc(30 * var(--u));
+    height: calc(20 * var(--u));
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.6;
+  }
+  .ld-closed-lid[aria-pressed='false'] {
+    color: var(--ink-faint);
+  }
+  .ld-safety {
+    width: calc(486 * var(--u));
+    margin: calc(13 * var(--u)) 0 0;
+    padding-top: calc(12 * var(--u));
+    /* Гравированная канавка, как в макете: светлая грань над тёмной, по краям — почти чёрное. */
+    border-top: 1px solid #676561;
+    box-shadow:
+      0 -1px 0 #090301,
+      inset 0 1px 0 #544f4e,
+      inset 0 2px 0 #0a0302;
+    font-size: calc(15.5 * var(--u));
+    font-stretch: 92%;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    text-align: center;
+    color: var(--ink-dim);
+  }
+  .ld-dl {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(10 * var(--u));
+    margin-top: calc(24 * var(--u));
+  }
+  .ld-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(18 * var(--u));
+    width: calc(369 * var(--u));
+    height: calc(59 * var(--u));
+    border-radius: calc(9 * var(--u));
+    background: linear-gradient(#f33a33, #d81f1d);
+    color: #fff;
+    font-weight: 600;
+    font-size: calc(22 * var(--u));
+    text-decoration: none;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 calc(8 * var(--u)) calc(24 * var(--u)) rgb(232 48 43 / 0.35);
+  }
+  .ld-download:hover {
+    background: linear-gradient(#ff4a42, #e3291f);
+  }
+  .ld-download svg {
+    width: calc(26 * var(--u));
+    height: calc(26 * var(--u));
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+  }
+  .ld-soon {
+    margin: 0;
+    font-family: var(--sign);
+    font-weight: 700;
+    font-size: calc(30 * var(--u));
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .ld-meta {
+    margin: 0;
+    font-size: calc(15.5 * var(--u));
+    color: var(--ink-dim);
+  }
+
+  /* Подпись на скотче под ноутбуком. */
+  .ld-caption {
+    left: calc(748 * var(--u));
+    translate: -50% 0;
+    top: calc(713 * var(--u));
+    min-width: calc(320 * var(--u));
+    height: calc(48 * var(--u));
+    margin: 0;
+    padding: 0 calc(24 * var(--u));
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    white-space: nowrap;
+    font-family: var(--hand);
+    font-size: calc(32 * var(--u));
+    color: #24170f;
+  }
+  /* Малярный скотч — плита, растянутая по длине подписи. */
+  .ld-tape {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .ld-caption span {
+    position: relative;
+  }
+
+  /* Светлая полоса под студией: безопасность. */
+  .ld-safe {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) calc(606 * var(--u));
+    gap: calc(80 * var(--u));
+    padding: calc(32 * var(--u)) calc(113 * var(--u)) 0 calc(130 * var(--u));
+    background: var(--paper);
+    color: var(--paper-ink);
+  }
+  .ld-safe-title {
+    margin: calc(13 * var(--u)) 0 0;
+    font-weight: 760;
+    font-size: calc(53 * var(--u));
+    line-height: 1;
+    letter-spacing: -0.025em;
+    text-box: trim-both cap alphabetic;
+  }
+  .ld-safe-line {
+    margin: calc(26 * var(--u)) 0 0;
+    font-size: calc(20 * var(--u));
+    font-stretch: 86%;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+  .ld-safe-body {
+    max-width: calc(540 * var(--u));
+    margin: calc(24 * var(--u)) 0 0;
+    font-size: calc(20 * var(--u));
+    font-stretch: 92%;
+    font-weight: 380;
+    line-height: calc(29 * var(--u));
+    color: #6d6a66;
+    text-box: trim-both cap alphabetic;
+  }
+  .ld-safe-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: calc(18 * var(--u)) calc(18 * var(--u)) 0 0;
+    background: linear-gradient(#ebe8e2, #dedad3);
+    overflow: hidden;
+  }
+  .ld-safe-items {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin: calc(26 * var(--u)) calc(70 * var(--u)) 0 calc(68 * var(--u));
+    padding: 0;
+    list-style: none;
+  }
+  .ld-safe-items li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(12 * var(--u));
+    font-size: calc(16 * var(--u));
+    line-height: calc(21 * var(--u));
+    text-align: center;
+  }
+  .ld-safe-items li + li {
+    box-shadow: inset 1px 0 0 #c6c2bb;
+  }
+  .ld-safe-items li > span {
+    display: flex;
+    flex-direction: column;
+  }
+  .ld-safe-items svg {
+    height: calc(32 * var(--u));
+    width: auto;
+    fill: none;
+    stroke: var(--paper-ink);
+    stroke-width: 1.8;
+  }
+  .ld-safe-photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: auto;
+  }
+  /* Восстановление: та же бумага, что у «Безопасно». */
+  .ld-recover {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) calc(420 * var(--u));
+    gap: calc(90 * var(--u));
+    padding: calc(70 * var(--u)) calc(113 * var(--u)) calc(80 * var(--u)) calc(130 * var(--u));
+    background: var(--paper);
+    color: var(--paper-ink);
+    border-top: 1px solid #e2ded6;
+  }
+  .ld-h2 {
+    margin: 0;
+    font-weight: 760;
+    font-size: calc(44 * var(--u));
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+  }
+  .ld-h3 {
+    margin: 0;
+    font-weight: 700;
+    font-size: calc(22 * var(--u));
+  }
+  .ld-recover-lead {
+    max-width: calc(640 * var(--u));
+    margin: calc(18 * var(--u)) 0 0;
+    font-size: calc(20 * var(--u));
+    font-stretch: 86%;
+    line-height: calc(29 * var(--u));
+    color: #57534e;
+  }
+  .ld-recover-table {
+    width: 100%;
+    margin-top: calc(30 * var(--u));
+    border-collapse: collapse;
+    font-size: calc(18 * var(--u));
+    line-height: calc(25 * var(--u));
+  }
+  .ld-recover-table th {
+    padding: 0 0 calc(10 * var(--u));
+    border-bottom: calc(2 * var(--u)) solid var(--paper-ink);
+    font-weight: 700;
+    font-size: calc(15 * var(--u));
+    text-align: left;
+    color: #6d6a66;
+  }
+  .ld-recover-table td {
+    padding: calc(14 * var(--u)) calc(24 * var(--u)) calc(14 * var(--u)) 0;
+    border-bottom: 1px solid #d9d5cd;
+    vertical-align: top;
+  }
+  .ld-recover-table td:first-child {
+    width: 46%;
+    font-weight: 600;
+  }
+  .ld-security {
+    display: flex;
+    flex-direction: column;
+    gap: calc(18 * var(--u));
+    align-self: start;
+    margin-top: calc(6 * var(--u));
+    padding: calc(28 * var(--u)) calc(30 * var(--u));
+    border-radius: calc(18 * var(--u));
+    background: linear-gradient(#ebe8e2, #dedad3);
+  }
+  .ld-security p {
+    display: flex;
+    flex-direction: column;
+    gap: calc(6 * var(--u));
+    margin: 0;
+    font-size: calc(17 * var(--u));
+    line-height: calc(24 * var(--u));
+    color: #57534e;
+  }
+  .ld-security strong {
+    font-weight: 700;
+    color: var(--paper-ink);
+  }
+
+  /* Снова студия: настоящие снимки панели. */
+  .ld-app,
+  .ld-install {
+    padding: calc(80 * var(--u)) calc(130 * var(--u)) 0;
+    background: var(--night);
+    color: var(--ink);
+  }
+  .ld-app-lead {
+    margin: calc(14 * var(--u)) 0 0;
+    font-size: calc(20 * var(--u));
+    font-stretch: 86%;
+    color: var(--ink-dim);
+  }
+  .ld-shots {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: calc(40 * var(--u));
+    align-items: start;
+    margin-top: calc(40 * var(--u));
+  }
+  .ld-shots figure,
+  .ld-menubar {
+    margin: 0;
+  }
+  .ld-shots img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: calc(16 * var(--u));
+    box-shadow:
+      0 0 0 1px rgb(244 238 230 / 0.12),
+      0 calc(20 * var(--u)) calc(50 * var(--u)) rgb(0 0 0 / 0.55);
+  }
+  .ld-shots figcaption,
+  .ld-menubar figcaption {
+    margin-top: calc(16 * var(--u));
+    font-size: calc(17 * var(--u));
+    font-stretch: 86%;
+    line-height: calc(24 * var(--u));
+    color: var(--ink-dim);
+  }
+  .ld-menubar {
+    margin-top: calc(56 * var(--u));
+  }
+  .ld-menubar img {
+    display: block;
+    width: calc(536 * var(--u));
+    height: auto;
+  }
+
+  .ld-install {
+    padding-top: calc(90 * var(--u));
+    padding-bottom: calc(90 * var(--u));
+    background: var(--night);
+  }
+  .ld-install-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) calc(400 * var(--u));
+    gap: calc(80 * var(--u));
+    align-items: start;
+    margin-top: calc(36 * var(--u));
+  }
+  .ld-steps {
+    display: grid;
+    gap: calc(22 * var(--u));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: calc(20 * var(--u));
+    font-stretch: 90%;
+    line-height: calc(28 * var(--u));
+  }
+  .ld-steps li {
+    display: flex;
+    align-items: flex-start;
+    gap: calc(22 * var(--u));
+  }
+  /* Номер шага — клавиша пульта, как сессии под табличкой. */
+  .ld-step-key {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: calc(48 * var(--u));
+    height: calc(48 * var(--u));
+    margin-top: calc(-10 * var(--u));
+    border-radius: calc(10 * var(--u));
+    background: rgb(30 23 21 / 0.96);
+    box-shadow: inset 0 0 0 1px rgb(244 238 230 / 0.28);
+    font-family: var(--sign);
+    font-weight: 700;
+    font-size: calc(28 * var(--u));
+  }
+  .ld-install-side {
+    display: flex;
+    flex-direction: column;
+    gap: calc(12 * var(--u));
+  }
+  .ld-install-side .ld-download {
+    margin-bottom: calc(10 * var(--u));
+  }
+  .ld-small {
+    margin: 0;
+    font-size: calc(16 * var(--u));
+    font-stretch: 90%;
+    line-height: calc(23 * var(--u));
+    color: var(--ink-dim);
+  }
+  .ld-source {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: rgb(244 238 230 / 0.35);
+    text-underline-offset: 0.2em;
+  }
+  .ld-source:hover {
+    text-decoration-color: var(--ink);
+  }
+  /* Студийная стена продолжается под первым экраном, приглушённо. */
+  .ld-app {
+    position: relative;
+    overflow: hidden;
+  }
+  .ld-app > :not(.ld-app-wall) {
+    position: relative;
+  }
+  .ld-app-wall {
+    position: absolute;
+    inset: 0 0 auto;
+    width: 100%;
+    height: calc(560 * var(--u));
+    object-fit: cover;
+    object-position: 50% 30%;
+    opacity: 0.22;
+    mask-image: linear-gradient(#000 20%, transparent);
+  }
+
+  @media (max-width: 63.99rem) {
+    .ld-hero {
+      display: flex;
+      flex-direction: column;
+      height: auto;
+      padding: 76px 16px 28px;
+    }
+    .ld-hero > :not(.ld-studio) {
+      position: relative;
+      inset: auto;
+      translate: none;
+    }
+    /* Фото студии прижато к низу: стол с закрытым ноутбуком — под индикаторами, над подписью;
+       верх фото растворяется в ночной стене, чтобы она не повторялась. */
+    .ld-studio {
+      inset: auto auto 0 50%;
+      width: 760px;
+      height: auto;
+      translate: -47% 0;
+      mask-image: linear-gradient(transparent, #000 40%);
+    }
+    .ld-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(rgb(20 12 10 / 0.55), rgb(20 12 10 / 0.25) 55%, rgb(20 12 10 / 0.1));
+    }
+    .ld-name {
+      gap: 16px;
+      align-items: center;
+    }
+    .ld-icon {
+      width: 72px;
+      height: 72px;
+      margin: 0;
+    }
+    .ld-title {
+      margin: 0;
+      font-size: 48px;
+    }
+    .ld-byline {
+      margin-top: 10px;
+      font-size: 15px;
+    }
+    .ld-headline {
+      width: auto;
+      margin-top: 26px;
+      font-size: 34px;
+      line-height: 38px;
+    }
+    .ld-lede {
+      width: auto;
+      margin-top: 18px;
+      font-size: 17px;
+      line-height: 24px;
+      font-stretch: 90%;
+    }
+    .ld-console {
+      order: 2;
+      width: auto;
+      margin-top: 26px;
+    }
+    .ld-sign {
+      height: 124px;
+      padding: 0;
+    }
+    .ld-sign::before {
+      inset: 12px 14px;
+      border-radius: 10px;
+    }
+    .ld-sign > *,
+    .ld-sign:lang(ru) .ld-sign-word,
+    .ld-sign:lang(ru) .ld-sign-time {
+      position: relative;
+      inset: auto;
+    }
+    .ld-sign {
+      gap: 18px;
+    }
+    .ld-sign::after,
+    .ld-sign:lang(ru)::after {
+      display: none;
+    }
+    .ld-sign .ld-sign-plate {
+      position: absolute;
+      inset: 0;
+    }
+    .ld-sign-word,
+    .ld-sign:lang(ru) .ld-sign-word {
+      font-size: 60px;
+    }
+    .ld-sign-time,
+    .ld-sign:lang(ru) .ld-sign-time {
+      font-size: 46px;
+      padding-left: 18px;
+      border-left: 2px solid rgb(255 220 200 / 0.5);
+    }
+    .ld-sessions,
+    .ld-closed-lid,
+    .ld-safety,
+    .ld-dl {
+      left: 0;
+    }
+    .ld-sessions {
+      width: 100%;
+      height: 46px;
+      margin-top: 14px;
+    }
+    .ld-sessions button {
+      font-size: 15px;
+    }
+    .ld-sessions button:last-child {
+      font-size: 20px;
+    }
+    .ld-closed-lid {
+      width: 100%;
+      height: 46px;
+      margin-top: 10px;
+      gap: 14px;
+      font-size: 16px;
+    }
+    .ld-closed-lid svg {
+      width: 24px;
+      height: 16px;
+    }
+    .ld-safety,
+    .ld-safety:lang(ru) {
+      width: 100%;
+      margin-top: 12px;
+      padding-top: 10px;
+      white-space: normal;
+      font-size: 13px;
+      line-height: 19px;
+    }
+    .ld-dl {
+      align-self: stretch;
+      margin-top: 18px;
+    }
+    .ld-download {
+      width: 100%;
+      height: 54px;
+      gap: 12px;
+      font-size: 17px;
+    }
+    .ld-download svg {
+      width: 20px;
+      height: 20px;
+    }
+    .ld-meta {
+      font-size: 13px;
+      text-align: center;
+    }
+    .ld-meters {
+      order: 3;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .ld-meter,
+    .ld-meter-battery,
+    .ld-meter-heat {
+      flex: 1;
+      width: auto;
+    }
+    .ld-meter-stop {
+      font-size: 10px;
+    }
+    .ld-meter-label {
+      bottom: 15%;
+      font-size: 13px;
+    }
+    .ld-caption {
+      order: 5;
+      margin-bottom: -22px;
+      align-self: center;
+      left: auto;
+      min-width: 0;
+      height: 40px;
+      margin-top: 132px;
+      padding: 0 18px;
+      font-size: 24px;
+    }
+
+    .ld-safe,
+    .ld-recover,
+    .ld-install-body {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+    .ld-safe {
+      padding: 36px 16px 0;
+    }
+    .ld-safe-title {
+      margin: 0;
+      font-size: 34px;
+    }
+    .ld-safe-line,
+    .ld-safe-line:lang(ru) {
+      margin-top: 18px;
+      white-space: normal;
+      font-size: 16px;
+      line-height: 23px;
+    }
+    .ld-safe-body {
+      max-width: none;
+      margin-top: 14px;
+      font-size: 16px;
+      line-height: 23px;
+    }
+    .ld-safe-items {
+      margin: 22px 10px 0;
+    }
+    .ld-safe-items li {
+      gap: 8px;
+      font-size: 13px;
+      line-height: 17px;
+    }
+    .ld-safe-items svg {
+      height: 24px;
+    }
+    .ld-recover {
+      padding: 48px 16px 52px;
+    }
+    .ld-h2 {
+      font-size: 30px;
+    }
+    .ld-h3 {
+      font-size: 18px;
+    }
+    .ld-recover-lead,
+    .ld-app-lead {
+      font-size: 16px;
+      line-height: 23px;
+    }
+    .ld-recover-table {
+      margin-top: 20px;
+      font-size: 15px;
+      line-height: 21px;
+    }
+    .ld-recover-table th {
+      font-size: 13px;
+      padding-bottom: 8px;
+    }
+    .ld-recover-table td {
+      padding: 10px 14px 10px 0;
+    }
+    .ld-security {
+      gap: 14px;
+      padding: 20px;
+      border-radius: 14px;
+    }
+    .ld-security p {
+      font-size: 15px;
+      line-height: 21px;
+    }
+    .ld-app,
+    .ld-install {
+      padding: 52px 16px 0;
+    }
+    .ld-install {
+      padding-bottom: 52px;
+    }
+    .ld-shots {
+      grid-template-columns: 1fr;
+      gap: 30px;
+      margin-top: 26px;
+      max-width: 340px;
+      margin-inline: auto;
+    }
+    .ld-shots img {
+      border-radius: 12px;
+    }
+    .ld-shots figcaption,
+    .ld-menubar figcaption {
+      margin-top: 12px;
+      font-size: 14px;
+      line-height: 20px;
+    }
+    .ld-menubar {
+      margin-top: 36px;
+    }
+    .ld-menubar img {
+      width: 100%;
+      max-width: 358px;
+    }
+    .ld-install-body {
+      margin-top: 22px;
+    }
+    .ld-steps {
+      gap: 18px;
+      font-size: 16px;
+      line-height: 23px;
+    }
+    .ld-steps li {
+      gap: 14px;
+    }
+    .ld-step-key {
+      width: 36px;
+      height: 36px;
+      margin-top: -6px;
+      border-radius: 8px;
+      font-size: 20px;
+    }
+    .ld-small {
+      font-size: 14px;
+      line-height: 20px;
+    }
   }
 </style>
