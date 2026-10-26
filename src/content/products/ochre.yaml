@@ -9,7 +9,7 @@ requires:
   arch: universal
 icon: icon.png
 tagline:
-  ru: Чип вашего Mac в работе — прямо в строке меню.
+  ru: "Чип вашего Mac в\u00a0работе\u00a0— прямо в\u00a0строке меню."
   en: See your Mac's chip at work, right from the menu bar.
 facts:
   - icon: chip

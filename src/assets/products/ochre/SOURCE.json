@@ -1,0 +1,19 @@
+{
+  "repo": "ochre",
+  "ref": "develop",
+  "commit": "845c599fc04bb19c178a4c09e109bde3a5795f69",
+  "files": {
+    "hero.jpg": "docs/images/hero.jpg",
+    "icon.png": "docs/images/icon.png",
+    "menubar-dark.png": "docs/images/menubar-dark.png",
+    "menubar-light.png": "docs/images/menubar-light.png",
+    "tab-cpu.jpg": "docs/images/tab-cpu.jpg",
+    "tab-disk.jpg": "docs/images/tab-disk.jpg",
+    "tab-memory.jpg": "docs/images/tab-memory.jpg",
+    "tab-network.jpg": "docs/images/tab-network.jpg",
+    "tab-sensors.jpg": "docs/images/tab-sensors.jpg",
+    "favicon-64.png": "site/img/favicon-64.png",
+    "icon-256.png": "site/img/icon-256.png",
+    "tab-overview.jpg": "site/img/tab-overview.jpg"
+  }
+}

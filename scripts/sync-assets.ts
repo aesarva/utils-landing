@@ -13,9 +13,14 @@ const REPO_DIR: Record<string, string> = {};
 /** Дополнительные папки с картинками (после docs/images). */
 const EXTRA: Record<string, string[]> = { ochre: ['site/img'] };
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+/** Файл происхождения рядом с картинками продукта. */
+const SOURCE_FILE = 'SOURCE.json';
 
 export function sourceDirs(id: string, projectsRoot: string): { repo: string; dirs: string[] } {
-  return { repo: join(projectsRoot, REPO_DIR[id] ?? id), dirs: ['docs/images', ...(EXTRA[id] ?? [])] };
+  // Object.hasOwn: id вроде «constructor» не должен находить унаследованное свойство объекта.
+  const repoDir = Object.hasOwn(REPO_DIR, id) ? REPO_DIR[id] : id;
+  const extra = Object.hasOwn(EXTRA, id) ? EXTRA[id] : [];
+  return { repo: join(projectsRoot, repoDir), dirs: ['docs/images', ...extra] };
 }
 
 function git(repo: string, args: string[]): Buffer {
@@ -67,8 +72,12 @@ export function syncProduct(id: string, opts: { projectsRoot: string; ref: strin
   if (dirname(target) !== resolve(opts.destRoot)) throw new Error(`целевая папка вне ${opts.destRoot}: ${target}`);
   mkdirSync(target, { recursive: true });
   for (const [name, bytes] of data) writeFileSync(join(target, name), bytes);
+  // Происхождение каждой картинки: откуда и с какого коммита она скопирована.
+  const commit = git(repo, ['rev-parse', `${opts.ref}^{commit}`]).toString().trim();
+  const source = { repo: basename(repo), ref: opts.ref, commit, files: Object.fromEntries(chosen) };
+  writeFileSync(join(target, SOURCE_FILE), `${JSON.stringify(source, null, 2)}\n`);
   const removed = readdirSync(target, { withFileTypes: true })
-    .filter((e) => e.isFile() && !chosen.has(e.name))
+    .filter((e) => e.isFile() && e.name !== SOURCE_FILE && !chosen.has(e.name))
     .map((e) => e.name);
   for (const f of removed) rmSync(join(target, f));
   return { copied: chosen.size, removed, skipped };

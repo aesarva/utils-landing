@@ -1,0 +1,5 @@
+{
+  "source": "ochre/Resources/AppIcon.icon",
+  "tool": "ictool --export-image --platform macOS --rendition Default --width 256 --height 256 --scale 2",
+  "note": "The shipped Ochre app icon, rendered from its Icon Composer source. Not generated: the comp's icon is a generator's paraphrase of this one."
+}

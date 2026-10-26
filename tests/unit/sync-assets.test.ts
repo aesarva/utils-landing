@@ -9,7 +9,10 @@ describe('sourceDirs', () => {
   it('ochre: docs/images и site/img', () => {
     expect(sourceDirs('ochre', '/p')).toEqual({ repo: '/p/ochre', dirs: ['docs/images', 'site/img'] });
   });
-  it('subus: только docs/images', () => {
+  it('id, совпадающий с унаследованным свойством объекта, не ломает поиск', () => {
+    expect(sourceDirs('constructor', '/p')).toEqual({ repo: '/p/constructor', dirs: ['docs/images'] });
+  });
+    it('subus: только docs/images', () => {
     expect(sourceDirs('subus', '/p')).toEqual({ repo: '/p/subus', dirs: ['docs/images'] });
   });
 });
@@ -73,11 +76,29 @@ describe('syncProduct (временный git-репозиторий)', () => {
 
   it('копирует картинки байт в байт, docs/images побеждает, лишнее удаляет', () => {
     const res = syncProduct('ochre', { projectsRoot: root, ref: 'develop', destRoot: dest });
-    expect(readdirSync(join(dest, 'ochre')).sort()).toEqual(['icon.png', 'tab-cpu.jpg', 'tab-disk.jpg', 'иконка "q".png']);
+    expect(readdirSync(join(dest, 'ochre')).sort()).toEqual(['SOURCE.json', 'icon.png', 'tab-cpu.jpg', 'tab-disk.jpg', 'иконка "q".png']);
     expect(readFileSync(join(dest, 'ochre/icon.png'))).toEqual(Buffer.from([0x89, 0x50, 0x00, 0xff, 0x0a, 0x0d]));
     expect(readFileSync(join(dest, 'ochre/tab-cpu.jpg'), 'utf8')).toBe('docs-version');
     expect(existsSync(join(dest, 'ochre/stale.png'))).toBe(false);
     expect(res).toEqual({ copied: 4, removed: ['stale.png'], skipped: ['site/img/tab-cpu.jpg'] });
+  });
+
+  it('пишет SOURCE.json: репозиторий, ref, коммит и исходный путь каждой картинки', () => {
+    syncProduct('ochre', { projectsRoot: root, ref: 'develop', destRoot: dest });
+    const commit = git('rev-parse', 'develop').toString().trim();
+    expect(JSON.parse(readFileSync(join(dest, 'ochre/SOURCE.json'), 'utf8'))).toEqual({
+      repo: 'ochre',
+      ref: 'develop',
+      commit,
+      files: {
+        'icon.png': 'docs/images/icon.png',
+        'tab-cpu.jpg': 'docs/images/tab-cpu.jpg',
+        'tab-disk.jpg': 'site/img/tab-disk.jpg',
+        'иконка "q".png': 'docs/images/иконка "q".png',
+      },
+    });
+    // Повторная синхронизация не считает SOURCE.json лишним файлом.
+    expect(syncProduct('ochre', { projectsRoot: root, ref: 'develop', destRoot: dest }).removed).toEqual([]);
   });
 
   it('читает ref, а не рабочее дерево', () => {
@@ -90,7 +111,7 @@ describe('syncProduct (временный git-репозиторий)', () => {
     git('commit', '-q', '-m', 'other');
     writeFileSync(join(repo, 'docs/images/dirty.png'), 'dirty');
     syncProduct('ochre', { projectsRoot: root, ref: 'develop', destRoot: dest });
-    expect(readdirSync(join(dest, 'ochre')).sort()).toEqual(['icon.png', 'tab-cpu.jpg', 'tab-disk.jpg', 'иконка "q".png']);
+    expect(readdirSync(join(dest, 'ochre')).sort()).toEqual(['SOURCE.json', 'icon.png', 'tab-cpu.jpg', 'tab-disk.jpg', 'иконка "q".png']);
     expect(readFileSync(join(dest, 'ochre/icon.png'))).toEqual(Buffer.from([0x89, 0x50, 0x00, 0xff, 0x0a, 0x0d]));
     expect(readFileSync(join(dest, 'ochre/tab-cpu.jpg'), 'utf8')).toBe('docs-version');
   });
@@ -99,7 +120,7 @@ describe('syncProduct (временный git-репозиторий)', () => {
     execFileSync('mv', [join(root, 'ochre'), join(root, 'foo')]);
     const res = syncProduct('foo', { projectsRoot: root, ref: 'develop', destRoot: dest });
     expect(res.copied).toBe(3);
-    expect(readdirSync(join(dest, 'foo')).sort()).toEqual(['icon.png', 'tab-cpu.jpg', 'иконка "q".png']);
+    expect(readdirSync(join(dest, 'foo')).sort()).toEqual(['SOURCE.json', 'icon.png', 'tab-cpu.jpg', 'иконка "q".png']);
   });
 
   it('недопустимый id бросает и ничего не трогает', () => {
