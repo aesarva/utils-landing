@@ -56,11 +56,12 @@ async function serve(site: Site): Promise<{ base: string; apiHeaders: IncomingHt
   return { base: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, apiHeaders };
 }
 
-function fakeRoot(products: { id: string; repo: string }[]): string {
+function fakeRoot(products: { id: string; repo: string; hold?: boolean }[]): string {
   const root = mkdtempSync(join(tmpdir(), 'deploy-check-'));
   mkdirSync(join(root, 'src/content/products'), { recursive: true });
   for (const p of products) {
-    writeFileSync(join(root, 'src/content/products', `${p.id}.yaml`), `id: ${p.id}\nname: X\nrepo: "${p.repo}"  # репо\n`);
+    const hold = p.hold ? 'hold: true  # релиз скрыт\n' : '';
+    writeFileSync(join(root, 'src/content/products', `${p.id}.yaml`), `id: ${p.id}\nname: X\nrepo: "${p.repo}"  # репо\n${hold}`);
   }
   return root;
 }
@@ -123,6 +124,22 @@ describe('deploy-check.sh', () => {
   });
 
   it('продукт вышел (был soon, теперь релиз) → run=true', async () => {
+    const site = healthy();
+    site.api!['aesarva/bb'] = json({ tag_name: 'v0.1.0' });
+    const { base } = await serve(site);
+    expect((await run(base, fakeRoot(products))).output.run).toBe('true');
+  });
+
+  it('hold: релиз в GitHub есть, на сайте soon → run=false, API не спрашиваем', async () => {
+    const site = healthy();
+    site.api!['aesarva/bb'] = json({ tag_name: 'v0.1.0' });
+    const { base, apiHeaders } = await serve(site);
+    const r = await run(base, fakeRoot([products[0], { ...products[1], hold: true }]));
+    expect(r.output).toEqual({ run: 'false', stale: 'false' });
+    expect(apiHeaders).toHaveLength(1);
+  });
+
+  it('hold снят, а на сайте всё ещё soon → run=true', async () => {
     const site = healthy();
     site.api!['aesarva/bb'] = json({ tag_name: 'v0.1.0' });
     const { base } = await serve(site);

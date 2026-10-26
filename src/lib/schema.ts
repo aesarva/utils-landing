@@ -40,6 +40,8 @@ export const productSchema = z.object({
   }),
   icon: z.string().min(1),
   tagline: localizedSchema,
+  /** Релиз скрыт: сайт показывает «скоро» и не даёт ссылку на скачивание, даже если релиз в GitHub есть. */
+  hold: z.boolean().optional(),
   /** Короткие факты из README продукта для полосы хаба, с пиктограммой из набора хаба. */
   facts: z
     .array(z.object({ icon: z.enum(FACT_ICONS), text: localizedSchema }))

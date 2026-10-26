@@ -66,14 +66,20 @@ export async function run(opts: RunOptions): Promise<{ written: boolean; warning
     const fetchImpl = opts.fetchImpl ?? fetch;
     const outcomes: Record<string, FetchOutcome> = {};
     await Promise.all(
-      products.map(async (p) => {
-        outcomes[p.id] = await fetchOutcome(p, fetchImpl, opts.token);
-      }),
+      products
+        .filter((p) => !p.hold)
+        .map(async (p) => {
+          outcomes[p.id] = await fetchOutcome(p, fetchImpl, opts.token);
+        }),
     );
+    for (const p of products) if (p.hold) outcomes[p.id] = { kind: 'ok', release: { status: 'soon' } };
     const merged = mergeReleases(ids, snapshot, outcomes);
     releases = merged.releases;
     warnings.push(...merged.warnings);
   }
+
+  // hold: релиз скрыт и офлайн — запись из снимка не должна показать ссылку на скачивание.
+  for (const p of products) if (p.hold) releases[p.id] = { status: 'soon' };
 
   // Файл переписывается, только если содержимое изменилось: офлайн-сборка не трогает git-дерево зря.
   const text = serializeReleases(releases);

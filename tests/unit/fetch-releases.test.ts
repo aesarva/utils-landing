@@ -17,6 +17,11 @@ function projectWithNewProduct(): string {
   for (const dir of ['src/content/products', 'src/data', 'src/worlds']) {
     cpSync(join(REPO, dir), join(root, dir), { recursive: true });
   }
+  // База тестов — продукты без hold: скрытие релиза проверяют отдельные тесты.
+  for (const id of ['ochre', 'lidless', 'subus']) {
+    const f = join(root, 'src/content/products', `${id}.yaml`);
+    writeFileSync(f, readFileSync(f, 'utf8').replace(/^hold:.*\n/m, ''));
+  }
   for (const id of ['ochre', 'lidless', 'subus']) {
     mkdirSync(join(root, 'src/assets/products', id), { recursive: true });
     copyFileSync(join(REPO, 'src/assets/products', id, 'icon.png'), join(root, 'src/assets/products', id, 'icon.png'));
@@ -26,7 +31,8 @@ function projectWithNewProduct(): string {
     .replace(/^name: .*$/m, 'name: Newtool')
     .replace(/^order: .*$/m, 'order: 99')
     .replace(/^repo: .*$/m, 'repo: aesarva/newtool')
-    .replace(/^dmg: .*$/m, 'dmg: Newtool');
+    .replace(/^dmg: .*$/m, 'dmg: Newtool')
+    .replace(/^hold:.*\n/m, '');
   writeFileSync(join(root, 'src/content/products/newtool.yaml'), yaml);
   mkdirSync(join(root, 'src/assets/products/newtool'), { recursive: true });
   copyFileSync(join(REPO, 'src/assets/products/subus/icon.png'), join(root, 'src/assets/products/newtool/icon.png'));
@@ -127,5 +133,30 @@ describe('fetch-releases онлайн (подменённый fetch)', () => {
     const after = JSON.parse(readFileSync(join(root, 'src/data/releases.json'), 'utf8'));
     expect(after).toEqual({ ...before, newtool: { status: 'soon' } });
     expect(warnings).toHaveLength(4);
+  });
+
+  it('hold: продукт со скрытым релизом получает soon, к его API не обращаемся', async () => {
+    const file = join(root, 'src/content/products/subus.yaml');
+    writeFileSync(file, readFileSync(file, 'utf8') + 'hold: true\n');
+    const asked: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      asked.push(String(url));
+      return new Response('{}', { status: 500 });
+    }) as unknown as typeof fetch;
+    await run({ root, offline: false, fetchImpl, warn: () => {}, log: () => {} });
+    const after = JSON.parse(readFileSync(join(root, 'src/data/releases.json'), 'utf8'));
+    expect(after.subus).toEqual({ status: 'soon' });
+    expect(asked.some((u) => u.includes('aesarva/subus'))).toBe(false);
+  });
+
+  it('hold действует и офлайн: снимок с релизом сводится к soon', async () => {
+    const file = join(root, 'src/content/products/subus.yaml');
+    writeFileSync(file, readFileSync(file, 'utf8') + 'hold: true\n');
+    const snap = join(root, 'src/data/releases.json');
+    const released = { status: 'released', version: '1.0.0', url: 'https://github.com/aesarva/subus/releases/download/v1.0.0/Subus-1.0.0.dmg', size: 1, publishedAt: 'T' };
+    writeFileSync(snap, JSON.stringify({ ...JSON.parse(readFileSync(snap, 'utf8')), subus: released }));
+    await run({ root, offline: true, warn: () => {}, log: () => {} });
+    const after = JSON.parse(readFileSync(join(root, 'src/data/releases.json'), 'utf8'));
+    expect(after.subus).toEqual({ status: 'soon' });
   });
 });
