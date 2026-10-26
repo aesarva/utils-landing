@@ -60,10 +60,16 @@ for f in "$root"/src/content/products/*.yaml; do
     why "$f: нет id или repo"
     continue
   fi
-  code="$("${CURL[@]}" -o "$tmp" -w '%{http_code}' -H 'Accept: application/vnd.github+json' \
-    ${auth[@]+"${auth[@]}"} "$api/repos/$repo/releases/latest" 2> /dev/null)" || code="000"
+  # hold: релиз скрыт, на сайте должен быть soon — GitHub не спрашиваем.
+  if [ "$(field hold "$f")" = "true" ]; then
+    code="hold"
+  else
+    code="$("${CURL[@]}" -o "$tmp" -w '%{http_code}' -H 'Accept: application/vnd.github+json' \
+      ${auth[@]+"${auth[@]}"} "$api/repos/$repo/releases/latest" 2> /dev/null)" || code="000"
+  fi
   want=""
   case "$code" in
+    hold) want="soon" ;;
     404) want="soon" ;;
     200)
       tag="$(jq -r '.tag_name // empty' "$tmp" 2> /dev/null || true)"

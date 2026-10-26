@@ -35,7 +35,8 @@ const icon = productIcon(product);
     )
   }
   <p>{d.license}: {product.license}</p>
-  <p><a href={`https://github.com/${product.repo}`}>{d.source}</a></p>
+  {/* Пока релиз скрыт (hold), не ведём и на GitHub: там лежит DMG. */}
+  {r.status === 'released' && <p><a href={`https://github.com/${product.repo}`}>{d.source}</a></p>}
 </section>
 
 <style is:global>

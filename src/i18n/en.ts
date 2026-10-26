@@ -3,7 +3,7 @@ import type { Dict } from './ru';
 
 export const en: Dict = {
   download: 'Download',
-  comingSoon: 'Coming soon',
+  comingSoon: 'In the works, release soon',
   source: 'Source code',
   requires: (macos: string) => `macOS ${macos} or later`,
   universal: 'Universal build',

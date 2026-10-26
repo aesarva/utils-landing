@@ -4,6 +4,8 @@ order: 3
 repo: aesarva/subus
 dmg: Subus
 license: GPL-3.0
+# Приложение переделывается под дизайн страницы: релиз скрыт до выхода новой версии.
+hold: true
 requires:
   macos: "14"
   arch: universal

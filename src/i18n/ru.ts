@@ -1,7 +1,7 @@
 // Словарь оболочки (ru). Рабочие тексты, финальный тон задаёт дизайн хаба.
 export const ru = {
   download: 'Скачать',
-  comingSoon: 'Скоро',
+  comingSoon: 'В работе, скоро релиз',
   source: 'Исходный код',
   requires: (macos: string) => `macOS ${macos} и новее`,
   universal: 'Универсальная сборка',
