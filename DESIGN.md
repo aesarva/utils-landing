@@ -126,6 +126,8 @@ The palette is ink on grey board. Black does the work, and one fluorescent signa
 ### Named Rules
 **The One Signal Rule.** Orange marks only the newest released product: its number, its arrow, and its sticker. No other element, band, or state uses it as a fill or as text.
 
+**The Held Band.** A product with `hold: true` (release hidden while it is being reworked) keeps its band but has no link and no arrow. Next to its name sits an ink rubber stamp, «В процессе» / «In progress»: mono caps in a double rule, tilted the other way from the sticker, masked with the same ink texture, never orange, never animated. Its catalogue number is the outlined one used for unreleased products. Held products are left out of the sitemap.
+
 **The Shell Mirror Rule.** The hub declares `--shell-ink` as `ink`, `--shell-ground` as `board-base`, `--shell-accent` as `signal`, and `--shell-font` as JetBrains Mono. The shell reads only these four values.
 
 ## Typography
