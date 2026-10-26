@@ -1,0 +1,22 @@
+{
+  "repo": "subus",
+  "ref": "develop",
+  "commit": "f0a3d3f36513c34327620c4484d3cd7c566e367a",
+  "files": {
+    "card-light-en.png": "docs/images/card-light-en.png",
+    "card-light-ru.png": "docs/images/card-light-ru.png",
+    "editor-new-light-en.png": "docs/images/editor-new-light-en.png",
+    "editor-new-light-ru.png": "docs/images/editor-new-light-ru.png",
+    "icon.png": "docs/images/icon.png",
+    "spending-light-en.png": "docs/images/spending-light-en.png",
+    "spending-light-ru.png": "docs/images/spending-light-ru.png",
+    "statusitem-light-en.png": "docs/images/statusitem-light-en.png",
+    "statusitem-light-ru.png": "docs/images/statusitem-light-ru.png",
+    "upcoming-dark-en.png": "docs/images/upcoming-dark-en.png",
+    "upcoming-dark-ru.png": "docs/images/upcoming-dark-ru.png",
+    "upcoming-light-en.png": "docs/images/upcoming-light-en.png",
+    "upcoming-light-ru.png": "docs/images/upcoming-light-ru.png",
+    "year-weeks-light-en.png": "docs/images/year-weeks-light-en.png",
+    "year-weeks-light-ru.png": "docs/images/year-weeks-light-ru.png"
+  }
+}
