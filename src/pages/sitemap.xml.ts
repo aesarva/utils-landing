@@ -5,7 +5,8 @@ import { SITE } from '../lib/site';
 import { LANGS } from '../lib/schema';
 
 export async function GET() {
-  const ids = (await getCollection('products')).map((e) => e.data.id);
+  // Продукт со скрытым релизом (hold) в карту сайта не попадает: ссылок на него на сайте нет.
+  const ids = (await getCollection('products')).filter((e) => !e.data.hold).map((e) => e.data.id);
   const keys: (string | undefined)[] = [undefined, ...ids];
   const urls = keys.flatMap((id) =>
     LANGS.map((lang) => {

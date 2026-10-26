@@ -23,6 +23,7 @@ export const en: Dict = {
   navLabel: 'Navigation',
   releasesLabel: 'Releases',
   newRelease: 'New release',
+  inProgress: 'In progress',
   pressingLabel: 'Release details',
   promisesTitle: 'Every release',
   promises: ['Free and open source', 'Local and private', 'Native, lives in the menu bar', 'Signed, notarized, self-updating'],

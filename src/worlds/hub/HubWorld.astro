@@ -48,17 +48,26 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
         const r = p.release;
         const href = pagePath(lang, p.id);
         return (
-          <li class:list={['band', { 'is-newest': p.id === newest, 'is-soon': r.status !== 'released' }]}>
+          <li class:list={['band', { 'is-newest': p.id === newest, 'is-soon': r.status !== 'released', 'is-held': p.hold }]}>
             <p class="band-num ink" aria-hidden="true">{catalogNumber(p.order)}</p>
             <Image class="band-emboss" src={embossedIcon(p)} alt="" width={452} height={452} />
             <div class="band-text">
               <h2 class="band-name">
-                <a class="band-link ink" href={href}>
-                  <span class="visually-hidden">{catalogNumber(p.order)} </span>
-                  {p.name}
-                </a>
+                {/* Релиз скрыт (hold): страницы пока не показываем — ни ссылки, ни стрелки, только штамп. */}
+                {p.hold ? (
+                  <span class="band-link ink">
+                    <span class="visually-hidden">{catalogNumber(p.order)} </span>
+                    {p.name}
+                  </span>
+                ) : (
+                  <a class="band-link ink" href={href}>
+                    <span class="visually-hidden">{catalogNumber(p.order)} </span>
+                    {p.name}
+                  </a>
+                )}
                 {p.id === newest && <span class="band-sticker">{d.newRelease}</span>}
-                <span class="band-arrow" aria-hidden="true" />
+                {p.hold && <span class="band-stamp">{d.inProgress}</span>}
+                {!p.hold && <span class="band-arrow" aria-hidden="true" />}
               </h2>
               <p class="band-line">{p.tagline[lang]}</p>
               <p class="band-press" aria-label={d.pressingLabel}>
@@ -412,7 +421,7 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
   .band-link {
     text-decoration: none;
   }
-  .band-link::after {
+  a.band-link::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -444,6 +453,26 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
     transform: rotate(-3deg);
     filter: drop-shadow(0 calc(2 * var(--u)) calc(3 * var(--u)) rgb(0 0 0 / 0.22));
     animation: sticker-slap 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+  }
+  /* «В процессе»: не наклейка, а резиновый штамп чернилами прямо по картону — как контурный номер
+     будущего релиза. Двойная рамка, наклон в другую сторону, без анимации. */
+  .band-stamp {
+    margin: calc(-20 * var(--u)) 0 0 calc(6 * var(--u));
+    padding: calc(14 * var(--u)) calc(22 * var(--u)) calc(11 * var(--u));
+    border: max(calc(4 * var(--u)), 2px) solid var(--ink);
+    outline: max(calc(2 * var(--u)), 1px) solid var(--ink);
+    outline-offset: calc(5 * var(--u));
+    color: var(--ink);
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: calc(28 * var(--u));
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transform: rotate(2.5deg);
+    mask-image: url('../../../assets/plates/ink-mask.webp');
+    mask-size: calc(512 * var(--u)) auto;
   }
   /* Единственный момент при загрузке: наклейку прижимают к картону. */
   @keyframes sticker-slap {
@@ -607,6 +636,12 @@ const PROMISE_ICONS = ['code', 'lock', 'menubar', 'shield'];
       margin: 0;
       padding: 8px 12px 6px;
       font-size: 18px;
+    }
+    .band-stamp {
+      margin: 0 0 0 4px;
+      padding: 5px 8px 4px;
+      outline-offset: 2px;
+      font-size: 11px;
     }
     .band-line {
       max-width: none;
